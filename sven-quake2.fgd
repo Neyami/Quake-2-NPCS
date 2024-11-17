@@ -1,0 +1,10 @@
+@PointClass base(Mandatory) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/soldier/soldier.mdl") = npc_q2soldier : "Quake 2 Guard"
+[
+	weapons(Choices) : "Weapons" : 0 =
+	[
+		0  : "Blaster"
+		1  : "Shotgun"
+		2  : "Machine Gun"
+		3  : "Random"
+	]
+]
