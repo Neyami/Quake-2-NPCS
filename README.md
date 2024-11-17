@@ -12,6 +12,7 @@ Models, textures, sounds by iD Software.
 
 
 # QUAKE 2 GUARD #  
+[Video](https://youtu.be/-_un4iP4fSQ?si=OQuB892iQe9vUACN)  
 `npc_q2soldier`  
 
 Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons  
