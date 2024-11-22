@@ -1,10 +1,12 @@
 @PointClass base(Mandatory) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/soldier/soldier.mdl") = npc_q2soldier : "Quake 2 Guard"
 [
-	weapons(Choices) : "Weapons" : 0 =
+	weapons(Choices) : "Weapons" : 1 =
 	[
-		0  : "Blaster"
-		1  : "Shotgun"
-		2  : "Machine Gun"
-		3  : "Random"
+		1  : "Blaster"
+		2  : "Shotgun"
+		4  : "Machine Gun"
+		8  : "Random"
 	]
 ]
+
+@PointClass base(Mandatory) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/enforcer/enforcer.mdl") = npc_q2enforcer : "Controllable Quake 2 Enforcer" []
