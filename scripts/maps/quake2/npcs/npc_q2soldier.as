@@ -10,11 +10,9 @@ const string MODEL_GIB_CHEST		= "models/quake2/monsters/soldier/gibs/chest.mdl";
 const string MODEL_GIB_GUN			= "models/quake2/monsters/soldier/gibs/gun.mdl";
 const string MODEL_GIB_HEAD		= "models/quake2/monsters/soldier/gibs/head.mdl";
 
-const int AE_ATTACK_SHOOT			= 3;
-const int AE_ATTACK_REFIRE1		= 4;
-const int AE_ATTACK_REFIRE2		= 5;
-const int AE_FOOTSTEP					= 6;
-const int AE_IDLESOUND				= 7;
+const int AE_ATTACK_SHOOT			= 6;
+const int AE_ATTACK_REFIRE1		= 7;
+const int AE_ATTACK_REFIRE2		= 8;
 
 const int NPC_HEALTH_BLASTER		= 20;
 const float BLASTER_DAMAGE			= 5;
@@ -98,10 +96,10 @@ enum anim_e
 
 enum weapons_e
 {
-	WEAPON_BLASTER = 0,
-	WEAPON_SHOTGUN,
-	WEAPON_MGUN,
-	WEAPON_RANDOM
+	WEAPON_BLASTER = 1,
+	WEAPON_SHOTGUN = 2,
+	WEAPON_MGUN = 4,
+	WEAPON_RANDOM = 8
 };
 
 final class npc_q2soldier : CBaseQ2NPC
@@ -115,18 +113,12 @@ final class npc_q2soldier : CBaseQ2NPC
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
 		g_EntityFuncs.SetSize( self.pev, NPC_MINS, NPC_MAXS );
 
-		if( pev.weapons == WEAPON_RANDOM )
+		if( pev.weapons <= 0 )
+			pev.weapons = WEAPON_BLASTER;
+		else if( pev.weapons == WEAPON_RANDOM )
 			pev.weapons = Math.RandomLong( WEAPON_BLASTER, WEAPON_MGUN );
 
-		if( pev.weapons == WEAPON_BLASTER )
-		{
-			pev.skin = 0;
-			pev.health = NPC_HEALTH_BLASTER;
-
-			if( string(self.m_FormattedName).IsEmpty() )
-				self.m_FormattedName	= "Light Guard";
-		}
-		else if( pev.weapons == WEAPON_SHOTGUN )
+		if( pev.weapons == WEAPON_SHOTGUN )
 		{
 			pev.skin = 2;
 			pev.health = NPC_HEALTH_SHOTGUN;
@@ -134,7 +126,7 @@ final class npc_q2soldier : CBaseQ2NPC
 			if( string(self.m_FormattedName).IsEmpty() )
 				self.m_FormattedName	= "Shotgun Guard";
 		}
-		else
+		else if( pev.weapons == WEAPON_MGUN )
 		{
 			pev.skin = 4;
 			pev.health = NPC_HEALTH_MGUN;
@@ -142,21 +134,30 @@ final class npc_q2soldier : CBaseQ2NPC
 			if( string(self.m_FormattedName).IsEmpty() )
 				self.m_FormattedName	= "Machine Gun Guard";
 		}
+		else
+		{
+			pev.skin = 0;
+			pev.health = NPC_HEALTH_BLASTER;
+
+			if( string(self.m_FormattedName).IsEmpty() )
+				self.m_FormattedName	= "Light Guard";
+		}
 
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
-		pev.view_ofs					= Vector( 0, 0, NPC_MAXS.z ); //VEC_VIEW;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
 		self.m_flFieldOfView		= 0.3;
-		self.m_MonsterState		= MONSTERSTATE_NONE;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
 		m_flGibHealth = -60.0;
 
+		if( q2::g_ChaosMode == q2::CHAOS_LEVEL1 )
+			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
+
 		self.MonsterInit();
 
 		if( self.IsPlayerAlly() )
-			SetUse( UseFunction(FollowerUse) );
+			SetUse( UseFunction(this.FollowerUse) );
 	}
 
 	void Precache()
@@ -174,6 +175,18 @@ final class npc_q2soldier : CBaseQ2NPC
 
 		for( i = 0; i < arrsNPCSounds.length(); ++i )
 			g_SoundSystem.PrecacheSound( arrsNPCSounds[i] );
+	}
+
+	void FollowerUse( CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue )
+	{
+		self.FollowerPlayerUse( pActivator, pCaller, useType, flValue );
+
+		/*CBaseEntity@ pTarget = self.m_hTargetEnt;
+		
+		if( pTarget is pActivator )
+			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_OK", 1.0, ATTN_NORM, 0, PITCH_NORM );
+		else
+			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_WAIT", 1.0, ATTN_NORM, 0, PITCH_NORM );*/
 	}
 
 	void SetYawSpeed() //SUPER IMPORTANT, NPC WON'T DO ANYTHING WITHOUT THIS :aRage:
@@ -230,11 +243,11 @@ final class npc_q2soldier : CBaseQ2NPC
 		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_SEARCH], VOL_NORM, ATTN_NORM );
 	}
 
-	void HandleAnimEvent( MonsterEvent@ pEvent )
+	void HandleAnimEventQ2( MonsterEvent@ pEvent )
 	{
 		switch( pEvent.event )
 		{
-			case AE_IDLESOUND:
+			case q2::AE_IDLESOUND:
 			{
 				if( Math.RandomFloat(0.0, 1.0) > 0.8 )
 					g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_IDLE], VOL_NORM, ATTN_IDLE );
@@ -242,7 +255,7 @@ final class npc_q2soldier : CBaseQ2NPC
 				break;
 			}
 
-			case AE_FOOTSTEP:
+			case q2::AE_FOOTSTEP:
 			{
 				monster_footstep();
 
@@ -345,10 +358,40 @@ final class npc_q2soldier : CBaseQ2NPC
 		{
 			Vector vecEnemyOrigin = self.m_hEnemy.GetEntity().pev.origin;
 			vecEnemyOrigin.z += self.m_hEnemy.GetEntity().pev.view_ofs.z;
+			//vecEnemyOrigin.z += (self.m_hEnemy.GetEntity().pev.maxs.z * 0.8); //don't aim too high
 			vecAim = (vecEnemyOrigin - vecMuzzle).Normalize();
 		}
 
-		if( pev.weapons == WEAPON_BLASTER )
+		if( pev.weapons == WEAPON_SHOTGUN )
+		{
+			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_SHOTGUN], VOL_NORM, ATTN_NORM );
+
+			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
+			MachineGunEffects( vecMuzzle );
+			//monster_fire_shotgun( vecMuzzle, vecAim, SHOTGUN_DAMAGE, SHOTGUN_SPREAD, SHOTGUN_COUNT );
+			monster_fire_weapon( q2::WEAPON_SHOTGUN, vecMuzzle, vecAim, SHOTGUN_DAMAGE );
+		}
+		else if( pev.weapons == WEAPON_MGUN )
+		{
+			if( m_flStopShooting <= 0.0 )
+				m_flStopShooting = g_Engine.time + Math.RandomFloat( 0.3, 1.1 );
+
+			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MGUN], VOL_NORM, ATTN_NORM );
+
+			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
+			MachineGunEffects( vecMuzzle );
+			//monster_fire_bullet( vecMuzzle, vecAim, MGUN_DAMAGE, MGUN_SPREAD );
+			monster_fire_weapon( q2::WEAPON_BULLET, vecMuzzle, vecAim, MGUN_DAMAGE );
+
+			if( g_Engine.time < m_flStopShooting )
+			{
+				if( pev.deadflag != DEAD_NO )
+					SetFrame( 36, 20 );
+				else
+					SetFrame( 6, 1 );
+			}
+		}
+		else
 		{
 			g_EngineFuncs.MakeVectors( vecAim );
 
@@ -360,34 +403,8 @@ final class npc_q2soldier : CBaseQ2NPC
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_BLASTER], VOL_NORM, ATTN_NORM );
 
 			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
-			monster_fire_blaster( vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
-		}
-		else if( pev.weapons == WEAPON_SHOTGUN )
-		{
-			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_SHOTGUN], VOL_NORM, ATTN_NORM );
-
-			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
-			MachineGunEffects( vecMuzzle );
-			monster_fire_shotgun( vecMuzzle, vecAim, SHOTGUN_DAMAGE, SHOTGUN_SPREAD, SHOTGUN_COUNT );
-		}
-		else
-		{
-			if( m_flStopShooting <= 0.0 )
-				m_flStopShooting = g_Engine.time + Math.RandomFloat( 0.3, 1.1 );
-
-			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MGUN], VOL_NORM, ATTN_NORM );
-
-			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
-			MachineGunEffects( vecMuzzle );
-			monster_fire_bullet( vecMuzzle, vecAim, MGUN_DAMAGE, MGUN_SPREAD );
-
-			if( g_Engine.time < m_flStopShooting )
-			{
-				if( pev.deadflag != DEAD_NO )
-					SetFrame( 36, 20 );
-				else
-					SetFrame( 6, 1 );
-			}
+			//monster_fire_blaster( vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
+			monster_fire_weapon( q2::WEAPON_BLASTER, vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
 		}
 	}
 
@@ -402,6 +419,8 @@ final class npc_q2soldier : CBaseQ2NPC
 
 	void HandlePain( float flDamage )
 	{
+		pev.dmg = flDamage;
+
 		if( pev.deadflag != DEAD_NO ) return;
 
 		if( pev.health < (pev.max_health / 2) )
@@ -417,12 +436,12 @@ final class npc_q2soldier : CBaseQ2NPC
 
 		pev.pain_finished = g_Engine.time + 3.0;
 
-		if( pev.weapons == WEAPON_BLASTER )
-			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN2], VOL_NORM, ATTN_NORM );
-		else if( pev.weapons == WEAPON_SHOTGUN )
+		if( pev.weapons == WEAPON_SHOTGUN )
 			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN3], VOL_NORM, ATTN_NORM );
-		else
+		else if( pev.weapons == WEAPON_MGUN )
 			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN1], VOL_NORM, ATTN_NORM );
+		else
+			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN2], VOL_NORM, ATTN_NORM );
 
 		if( pev.velocity.z > 100 )
 		{
@@ -449,12 +468,12 @@ final class npc_q2soldier : CBaseQ2NPC
 		{
 			case TASK_DIE:
 			{
-				if( pev.weapons == WEAPON_BLASTER )
-					g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_DEATH2], VOL_NORM, ATTN_NORM );
-				else if( pev.weapons == WEAPON_SHOTGUN )
+				if( pev.weapons == WEAPON_SHOTGUN )
 					g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_DEATH1], VOL_NORM, ATTN_NORM );
-				else
+				else if( pev.weapons == WEAPON_MGUN )
 					g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_DEATH3], VOL_NORM, ATTN_NORM );
+				else
+					g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_DEATH2], VOL_NORM, ATTN_NORM );
 
 				if( self.m_LastHitGroup == HITGROUP_HEAD and pev.velocity.z < 65.0 )
 				{
@@ -507,13 +526,13 @@ final class npc_q2soldier : CBaseQ2NPC
 	{
 		g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_DEATH_GIB], VOL_NORM, ATTN_NORM );
 
-		ThrowGib( EHandle(self), 3, MODEL_GIB_MEAT, pev.dmg, -1, BREAK_FLESH );
-		ThrowGib( EHandle(self), 1, MODEL_GIB_BONE, pev.dmg, -1, BREAK_FLESH );
-		ThrowGib( EHandle(self), 1, MODEL_GIB_BONE2, pev.dmg, -1, BREAK_FLESH );
-		ThrowGib( EHandle(self), 1, MODEL_GIB_ARM, pev.dmg, 7, BREAK_FLESH, pev.skin / 2 ); //divide by 2 to get the proper gibskin, since the monster model has 6 skins but the gibs only have 3
-		ThrowGib( EHandle(self), 1, MODEL_GIB_GUN, pev.dmg, 5, 0, pev.skin / 2 );
-		ThrowGib( EHandle(self), 1, MODEL_GIB_CHEST, pev.dmg, 2, BREAK_FLESH, pev.skin / 2 );
-		ThrowGib( EHandle(self), 1, MODEL_GIB_HEAD, pev.dmg, 3, BREAK_FLESH, pev.skin / 2 );
+		ThrowGib( 3, MODEL_GIB_MEAT, pev.dmg, -1, BREAK_FLESH );
+		ThrowGib( 1, MODEL_GIB_BONE, pev.dmg, -1, BREAK_FLESH );
+		ThrowGib( 1, MODEL_GIB_BONE2, pev.dmg, -1, BREAK_FLESH );
+		ThrowGib( 1, MODEL_GIB_ARM, pev.dmg, 7, BREAK_FLESH, pev.skin / 2 ); //divide by 2 to get the proper gibskin, since the monster model has 6 skins but the gibs only have 3
+		ThrowGib( 1, MODEL_GIB_GUN, pev.dmg, 5, 0, pev.skin / 2 );
+		ThrowGib( 1, MODEL_GIB_CHEST, pev.dmg, 2, BREAK_FLESH, pev.skin / 2 );
+		ThrowGib( 1, MODEL_GIB_HEAD, pev.dmg, 3, BREAK_FLESH, pev.skin / 2 );
 
 		SetThink( ThinkFunction(this.SUB_Remove) );
 		pev.nextthink = g_Engine.time;
