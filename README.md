@@ -19,3 +19,11 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 
 
 <BR>
+
+
+# QUAKE 2 ENFORCER #  
+[Video](TBD)  
+`npc_q2enforcer`  
+
+
+<BR>
