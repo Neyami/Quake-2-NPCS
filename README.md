@@ -11,7 +11,7 @@ Models, textures, sounds by iD Software.
 <BR>
 
 
-# QUAKE 2 GUARD #  
+# STROGG GUARD #  
 [Video](https://youtu.be/-_un4iP4fSQ?si=OQuB892iQe9vUACN)  
 `npc_q2soldier`  
 
@@ -21,9 +21,18 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 <BR>
 
 
-# QUAKE 2 ENFORCER #  
+# STROGG ENFORCER #  
 [Video](https://youtu.be/NX65qHFANG4?si=1CG-YtByvuoslJW2)  
 `npc_q2enforcer`  
 
 
 <BR>
+
+
+# IRON MAIDEN #  
+[Video](https://youtu.be/_mOfQfemmFs?si=pDq6O0BbQIZNdi4g)  
+`npc_q2ironmaiden`  
+
+
+<BR>
+
