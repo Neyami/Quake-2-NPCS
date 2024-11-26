@@ -9,4 +9,6 @@
 	]
 ]
 
-@PointClass base(Mandatory) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/enforcer/enforcer.mdl") = npc_q2enforcer : "Controllable Quake 2 Enforcer" []
+@PointClass base(Mandatory) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/enforcer/enforcer.mdl") = npc_q2enforcer : "Quake 2 Enforcer" []
+
+@PointClass base(Mandatory) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/ironmaiden/ironmaiden.mdl") = npc_q2ironmaiden : "Quake 2 Iron Maiden" []
