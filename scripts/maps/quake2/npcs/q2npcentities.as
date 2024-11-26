@@ -249,7 +249,7 @@ class q2grenadenpc : ScriptBaseEntity
 
 		@pev.owner = null;
 
-		g_WeaponFuncs.RadiusDamage( pev.origin, pevOwner, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
+		g_WeaponFuncs.RadiusDamage( pev.origin, self.pev, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
 
 		g_EntityFuncs.Remove( self );
 	}
@@ -305,7 +305,7 @@ class q2rocketnpc : ScriptBaseEntity
 	{
 		g_SoundSystem.StopSound( self.edict(), CHAN_VOICE, "quake2/weapons/rocket_fly.wav" );
 
-		if( g_EngineFuncs.PointContents( pev.origin ) == CONTENTS_SKY )
+		if( g_EngineFuncs.PointContents(pev.origin) == CONTENTS_SKY )
 		{
 			SetThink( ThinkFunction(this.RemoveThink) );
 			pev.nextthink = g_Engine.time + 0.1;
@@ -351,7 +351,7 @@ class q2rocketnpc : ScriptBaseEntity
 
 			@pev.owner = null;
 
-			g_WeaponFuncs.RadiusDamage( pev.origin, pevOwner, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
+			g_WeaponFuncs.RadiusDamage( pev.origin, self.pev, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
 		}
 
 		SetThink( ThinkFunction(this.RemoveThink) );

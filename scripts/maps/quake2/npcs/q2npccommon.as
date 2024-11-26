@@ -136,6 +136,73 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return true;
 	}
 
+	bool M_ShouldReactToPain()
+	{
+		if( q2::g_iDifficulty >= q2::DIFF_NIGHTMARE )
+			return false;
+
+		return true;
+	}
+
+	void PredictAim( EHandle hTarget, const Vector &in vecStart, float flBoltSpeed, bool bEyeHeight, float flOffset, Vector &out vecAimdir, Vector &out vecAimpoint )
+	{
+		Vector vecDir, vecTemp;
+		float flDist, flTime;
+
+		if( !hTarget.IsValid() /*or !hTarget->inuse*/ )
+		{
+			vecAimdir = g_vecZero;
+			return;
+		}
+
+		vecDir = hTarget.GetEntity().pev.origin - vecStart;
+		if( bEyeHeight )
+			vecDir.z += hTarget.GetEntity().pev.view_ofs.z;
+
+		flDist = vecDir.Length();
+
+		// [Paril-KEX] if our current attempt is blocked, try the opposite one
+		TraceResult tr;
+		g_Utility.TraceLine( vecStart, vecStart + vecDir, missile, self.edict(), tr ); //MASK_PROJECTILE
+
+		if( tr.pHit !is hTarget.GetEntity().edict() )
+		{
+			bEyeHeight = !bEyeHeight;
+			vecDir = hTarget.GetEntity().pev.origin - vecStart;
+
+			if( bEyeHeight )
+				vecDir.z += hTarget.GetEntity().pev.view_ofs.z;
+
+			flDist = vecDir.Length();
+		}
+
+		if( flBoltSpeed > 0.0 )
+			flTime = flDist / flBoltSpeed;
+		else
+			flTime = 0.0;
+
+		vecTemp = hTarget.GetEntity().pev.origin + ( hTarget.GetEntity().pev.velocity * (flTime - flOffset) );
+
+		// went backwards...
+		//if( vecDir.normalized().dot( (vecTemp - vecStart).normalized() ) < 0)
+		if( DotProduct(vecDir.Normalize(), (vecTemp - vecStart).Normalize()) < 0 )
+			vecTemp = hTarget.GetEntity().pev.origin;
+		else
+		{
+			// if the shot is going to impact a nearby wall from our prediction, just fire it straight.
+			g_Utility.TraceLine( vecStart, vecTemp, ignore_monsters, self.edict(), tr ); //MASK_SOLID
+			//if (gi.traceline(vecStart, vecTemp, nullptr, MASK_SOLID).fraction < 0.9f)
+			if( tr.flFraction < 0.9 )
+				vecTemp = hTarget.GetEntity().pev.origin;
+		}
+
+		if( bEyeHeight )
+			vecTemp.z += hTarget.GetEntity().pev.view_ofs.z;
+
+		vecAimdir = (vecTemp - vecStart).Normalize();
+		vecAimpoint = vecTemp;
+	}
+
 	CBaseEntity@ CheckTraceHullAttack( float flDist, float flDamage, int iDmgType )
 	{
 		TraceResult tr;
@@ -167,9 +234,9 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	//for chaos mode
 	void monster_fire_weapon( int iWeaponType, Vector vecMuzzle, Vector vecAim, float flDamage, float flSpeed = 600.0 )
 	{
-		if( q2::g_ChaosMode == q2::CHAOS_LEVEL1 )
+		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
 			iWeaponType = m_iWeaponType;
-		else if( q2::g_ChaosMode == q2::CHAOS_LEVEL2 )
+		else if( q2::g_iChaosMode == q2::CHAOS_LEVEL2 )
 			iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
 
 		switch( iWeaponType )
@@ -248,7 +315,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pRocket.pev.dmg = flDamage;
 		pRocket.pev.angles = Math.VecToAngles( vecDir.Normalize() );
 
-		if( self.GetClassname() == "npc_q2supertank" or self.GetClassname() == "npc_q2ironmaiden" )
+		if( self.GetClassname() == "npc_q2supertank" )
 			pRocket.pev.scale = 2.0;
 
 		pRocket.pev.targetname = self.GetClassname(); //for death messages

@@ -1,8 +1,9 @@
 #include "npcs/q2npccommon"
 #include "npcs/q2npcentities"
 
-#include "npcs/npc_q2soldier"
-#include "npcs/npc_q2enforcer"
+#include "npcs/npc_q2soldier" //20-40 HP
+#include "npcs/npc_q2enforcer" //100 HP
+#include "npcs/npc_q2ironmaiden" //175 HP
 
 //for stadium4q2
 #include "../stadium4/env_te"
@@ -11,7 +12,8 @@
 
 void MapInit()
 {
-	q2::g_ChaosMode = q2::CHAOS_NONE;
+	q2::g_iChaosMode = q2::CHAOS_NONE;
+	q2::g_iDifficulty = q2::DIFF_HARD;
 
 	q2::RegisterNPCRailbeam();
 	q2::RegisterNPCLaser();
@@ -21,6 +23,7 @@ void MapInit()
 
 	npc_q2soldier::Register();
 	npc_q2enforcer::Register();
+	npc_q2ironmaiden::Register();
 
 	//for stadium4q2
 	g_CustomEntityFuncs.RegisterCustomEntity( "env_te_teleport", "env_te_teleport" );
@@ -33,7 +36,8 @@ void MapInit()
 namespace q2
 {
 
-int g_ChaosMode;
+int g_iDifficulty;
+int g_iChaosMode;
 
 const Vector DEFAULT_BULLET_SPREAD = VECTOR_CONE_3DEGREES;
 const Vector DEFAULT_SHOTGUN_SPREAD = VECTOR_CONE_5DEGREES;
@@ -42,6 +46,7 @@ const array<string> g_arrsQ2Monsters =
 {
 	"npc_q2soldier",
 	"npc_q2enforcer",
+	"npc_q2ironmaiden",
 	"npc_q2berserker",
 	"npc_q2gladiator",
 	"npc_q2tank"
@@ -136,6 +141,13 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 					else
 						sDeathMsg = string(pVictim.pev.netname) + " ate a Tank's rocket\n";
 				}
+				else if( pProjectile.pev.targetname == "npc_q2ironmaiden" )
+				{
+					if( Math.RandomLong(1, 10) <= 5 )
+						sDeathMsg = string(pVictim.pev.netname) + "  almost dodged an Iron Maiden's rocket\n";
+					else
+						sDeathMsg = string(pVictim.pev.netname) + " ate an Iron Maiden's rocket\n";
+				}
 			}
 
 			g_PlayerFuncs.ClientPrintAll( HUD_PRINTNOTIFY, sDeathMsg );
@@ -175,6 +187,8 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 				else
 					sDeathMsg = string(pVictim.pev.netname) + " was bludgeoned by an Enforcer\n";
 			}
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2ironmaiden" )
+				sDeathMsg = string(pVictim.pev.netname) + " was bitch-slapped by an Iron Maiden\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2berserker" )
 				sDeathMsg = string(pVictim.pev.netname) + " was smashed by a Berserker\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2gladiator" )
@@ -198,3 +212,12 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 }
 
 } //end of namespace q2
+
+/* FIXME
+*/
+
+/* TODO
+	Try to fix flinching
+	Add blindfire ??
+	Add ducking ??
+*/

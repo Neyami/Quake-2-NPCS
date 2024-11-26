@@ -101,7 +101,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 		m_flGibHealth = -60.0;
 
-		if( q2::g_ChaosMode == q2::CHAOS_LEVEL1 )
+		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
 			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
 
 		self.MonsterInit();
