@@ -4,6 +4,7 @@
 #include "npcs/npc_q2soldier" //20-40 HP
 #include "npcs/npc_q2enforcer" //100 HP
 #include "npcs/npc_q2ironmaiden" //175 HP
+#include "npcs/npc_q2gladiator" //400 HP
 
 //for stadium4q2
 #include "../stadium4/env_te"
@@ -24,6 +25,7 @@ void MapInit()
 	npc_q2soldier::Register();
 	npc_q2enforcer::Register();
 	npc_q2ironmaiden::Register();
+	npc_q2gladiator::Register();
 
 	//for stadium4q2
 	g_CustomEntityFuncs.RegisterCustomEntity( "env_te_teleport", "env_te_teleport" );
@@ -47,6 +49,7 @@ const array<string> g_arrsQ2Monsters =
 	"npc_q2soldier",
 	"npc_q2enforcer",
 	"npc_q2ironmaiden",
+	"npc_q2gladiator",
 	"npc_q2berserker",
 	"npc_q2gladiator",
 	"npc_q2tank"
@@ -220,4 +223,5 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 	Try to fix flinching
 	Add blindfire ??
 	Add ducking ??
+	Make use of m_flGibHealth ??
 */

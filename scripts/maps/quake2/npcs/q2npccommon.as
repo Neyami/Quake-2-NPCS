@@ -26,7 +26,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	protected float m_flMeleeCooldown;
 	protected float m_flGibHealth;
 	protected float m_flAttackFinished;
-	protected float m_flNextSearch;
+	protected float m_flNextIdle;
 	protected int m_iStepLeft;
 	protected int m_iWeaponType;
 
@@ -51,25 +51,44 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			return BaseClass.KeyValue( szKey, szValue );
 	}
 
+	void DoIdleSound()
+	{
+		if( self.m_Activity == ACT_IDLE and g_Engine.time > m_flNextIdle )
+		{
+			if( m_flNextIdle > 0.0 )
+			{
+				IdleSoundQ2();
+				m_flNextIdle = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
+			}
+			else
+				m_flNextIdle = g_Engine.time + Math.RandomFloat(0, 1) * 15;
+		}
+	}
+
+	void IdleSoundQ2() {}
+
+	void DoSearchSound()
+	{
+		if( self.m_Activity == ACT_WALK and g_Engine.time > m_flNextIdle )
+		{
+			if( m_flNextIdle > 0.0 )
+			{
+				SearchSound();
+				m_flNextIdle = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
+			}
+			else
+				m_flNextIdle = g_Engine.time + Math.RandomFloat(0, 1) * 15;
+		}
+	}
+
 	void SearchSound() {}
 
 	void RunAI()
 	{
 		BaseClass.RunAI();
-		
-		if( self.m_Activity == ACT_WALK )
-		{
-			if( g_Engine.time > m_flNextSearch )
-			{
-				if( m_flNextSearch > 0.0 )
-				{
-					SearchSound();
-					m_flNextSearch = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
-				}
-				else
-					m_flNextSearch = g_Engine.time + Math.RandomFloat(0, 1) * 15;
-			}
-		}
+
+		DoIdleSound();		
+		DoSearchSound();
 	}
 
 	void HandleAnimEvent( MonsterEvent@ pEvent )
@@ -86,7 +105,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			case q2::AE_FOOTSTEP:
 			{
-				monster_footstep();
+				monster_footstep( atoi(pEvent.options()) );
 				break;
 			}
 
@@ -237,7 +256,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
 			iWeaponType = m_iWeaponType;
 		else if( q2::g_iChaosMode == q2::CHAOS_LEVEL2 )
-			iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
+		{
+			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
+				iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
+			else
+				iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
+		}
 
 		switch( iWeaponType )
 		{
@@ -407,7 +431,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		g_EntityFuncs.DispatchSpawn( pBeam.self.edict() );
 	}
 
-	void monster_muzzleflash( Vector vecOrigin, int iRadius, int iR, int iG, int iB )
+	void monster_muzzleflash( Vector vecOrigin, int iR, int iG, int iB, int iRadius = 20 )
 	{
 		NetworkMessage m1( MSG_PVS, NetworkMessages::SVC_TEMPENTITY, vecOrigin );
 			m1.WriteByte( TE_DLIGHT );

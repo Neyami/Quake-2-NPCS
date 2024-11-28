@@ -149,7 +149,7 @@ final class npc_q2soldier : CBaseQ2NPC
 		self.m_flFieldOfView		= 0.3;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
-		m_flGibHealth = -60.0;
+		m_flGibHealth = -30.0;
 
 		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
 			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
@@ -366,7 +366,7 @@ final class npc_q2soldier : CBaseQ2NPC
 		{
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_SHOTGUN], VOL_NORM, ATTN_NORM );
 
-			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
+			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			MachineGunEffects( vecMuzzle );
 			//monster_fire_shotgun( vecMuzzle, vecAim, SHOTGUN_DAMAGE, SHOTGUN_SPREAD, SHOTGUN_COUNT );
 			monster_fire_weapon( q2::WEAPON_SHOTGUN, vecMuzzle, vecAim, SHOTGUN_DAMAGE );
@@ -378,7 +378,7 @@ final class npc_q2soldier : CBaseQ2NPC
 
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MGUN], VOL_NORM, ATTN_NORM );
 
-			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
+			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			MachineGunEffects( vecMuzzle );
 			//monster_fire_bullet( vecMuzzle, vecAim, MGUN_DAMAGE, MGUN_SPREAD );
 			monster_fire_weapon( q2::WEAPON_BULLET, vecMuzzle, vecAim, MGUN_DAMAGE );
@@ -402,7 +402,7 @@ final class npc_q2soldier : CBaseQ2NPC
 
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_BLASTER], VOL_NORM, ATTN_NORM );
 
-			monster_muzzleflash( vecMuzzle, 20, 255, 255, 0 );
+			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			//monster_fire_blaster( vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
 			monster_fire_weapon( q2::WEAPON_BLASTER, vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
 		}

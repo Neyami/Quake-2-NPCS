@@ -83,16 +83,21 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
-		self.m_flFieldOfView		= 0.3;
+		self.m_flFieldOfView		= 0.5;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
 		if( string(self.m_FormattedName).IsEmpty() )
 			self.m_FormattedName	= "Iron Maiden";
 
-		m_flGibHealth = -60.0;
+		m_flGibHealth = -70.0;
 
 		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
+		{
+			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
+			else
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
+		}
 
 		self.MonsterInit();
 
@@ -246,7 +251,10 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 			TraceResult tr;
 			g_Utility.TraceLine( vecMuzzle, vecTrace, missile, self.edict(), tr );
 			if( tr.flFraction > 0.5 or tr.fAllSolid == 0 ) //trace.ent->solid != SOLID_BSP
+			{
+				monster_muzzleflash( vecMuzzle, 255, 128, 51 );
 				monster_fire_weapon( q2::WEAPON_ROCKET, vecMuzzle, vecAim, ROCKET_DMG, ROCKET_SPEED );
+			}
 		}
 	}
 
@@ -337,8 +345,7 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 
 void Register()
 {
-	if( !g_CustomEntityFuncs.IsCustomEntity( "q2rocketnpc" ) ) 
-		q2::RegisterNPCRocket();
+	q2::RegisterProjectile( "rocket" );
 
 	g_CustomEntityFuncs.RegisterCustomEntity( "npc_q2ironmaiden::npc_q2ironmaiden", "npc_q2ironmaiden" );
 	g_Game.PrecacheOther( "npc_q2ironmaiden" );

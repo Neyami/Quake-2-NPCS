@@ -93,16 +93,21 @@ final class npc_q2enforcer : CBaseQ2NPC
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
-		self.m_flFieldOfView		= 0.3;
+		self.m_flFieldOfView		= 0.5;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
 		if( string(self.m_FormattedName).IsEmpty() )
 			self.m_FormattedName	= "Enforcer";
 
-		m_flGibHealth = -60.0;
+		m_flGibHealth = -65.0;
 
 		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
+		{
+			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
+			else
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
+		}
 
 		self.MonsterInit();
 
@@ -169,7 +174,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 		{
 			case AE_MELEEATTACK:
 			{
-				int iDamage = Math.RandomLong(MELEE_DMG_MIN, MELEE_DMG_MAX);
+				int iDamage = Math.RandomLong( MELEE_DMG_MIN, MELEE_DMG_MAX );
 
 				CBaseEntity@ pHurt = CheckTraceHullAttack( Q2_MELEE_DISTANCE, iDamage, DMG_GENERIC );
 				if( pHurt !is null )

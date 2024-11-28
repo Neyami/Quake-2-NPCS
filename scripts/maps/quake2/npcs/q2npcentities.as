@@ -673,4 +673,33 @@ void RegisterNPCBFG()
 	g_Game.PrecacheOther( "q2bfgnpc" );
 }
 
+void RegisterProjectile( string sType )
+{
+	if( sType == "laser" )
+	{
+		if( !g_CustomEntityFuncs.IsCustomEntity( "q2lasernpc" ) )
+			q2::RegisterNPCLaser();
+	}
+	else if( sType == "grenade" )
+	{
+		if( !g_CustomEntityFuncs.IsCustomEntity( "q2grenadenpc" ) )
+			q2::RegisterNPCGrenade();
+	}
+	else if( sType == "rocket" )
+	{
+		if( !g_CustomEntityFuncs.IsCustomEntity( "q2rocketnpc" ) )
+			q2::RegisterNPCRocket();
+	}
+	else if( sType == "railbeam" )
+	{
+		if( !g_CustomEntityFuncs.IsCustomEntity( "q2railbeamnpc" ) )
+			q2::RegisterNPCRailbeam();
+	}
+	else if( sType == "bfg" )
+	{
+		if( !g_CustomEntityFuncs.IsCustomEntity( "q2bfgnpc" ) )
+			q2::RegisterNPCBFG();
+	}
+}
+
 } //namespace q2 END
