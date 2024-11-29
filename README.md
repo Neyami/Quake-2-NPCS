@@ -36,3 +36,11 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 
 <BR>
 
+
+# GLADIATOR #  
+[Video](https://youtu.be/yO9gGEOXl5k?si=vuvS8mBnJ1117vBe)  
+`npc_q2gladiator`  
+
+
+<BR>
+
