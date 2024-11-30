@@ -37,6 +37,16 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 <BR>
 
 
+# BERSERKER #  
+[Video](https://youtu.be/R6l1_VMTJeI?si=7GmLt90k4zb9akv2)  
+`npc_q2berserker`  
+
+
+<BR>
+
+
+
+
 # GLADIATOR #  
 [Video](https://youtu.be/yO9gGEOXl5k?si=vuvS8mBnJ1117vBe)  
 `npc_q2gladiator`  
