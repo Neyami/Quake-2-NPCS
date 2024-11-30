@@ -13,4 +13,6 @@
 
 @PointClass base(Mandatory) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/ironmaiden/ironmaiden.mdl") = npc_q2ironmaiden : "Quake 2 Iron Maiden" []
 
+@PointClass base(Mandatory) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/berserker/berserker.mdl") = npc_q2berserker : "Quake 2 Berserker" []
+
 @PointClass base(Mandatory) size(-32 -32 0, 32 32 90) studio("models/quake2/monsters/gladiator/gladiator.mdl") = npc_q2gladiator : "Quake 2 Gladiator" []
