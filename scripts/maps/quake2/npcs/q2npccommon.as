@@ -51,6 +51,14 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			return BaseClass.KeyValue( szKey, szValue );
 	}
 
+	void RunAI()
+	{
+		BaseClass.RunAI();
+
+		DoIdleSound();		
+		DoSearchSound();
+	}
+
 	void DoIdleSound()
 	{
 		if( self.m_Activity == ACT_IDLE and g_Engine.time > m_flNextIdle )
@@ -83,14 +91,6 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 	void SearchSound() {}
 
-	void RunAI()
-	{
-		BaseClass.RunAI();
-
-		DoIdleSound();		
-		DoSearchSound();
-	}
-
 	void HandleAnimEvent( MonsterEvent@ pEvent )
 	{
 		switch( pEvent.event )
@@ -105,7 +105,11 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			case q2::AE_FOOTSTEP:
 			{
-				monster_footstep( atoi(pEvent.options()) );
+				if( atoi(pEvent.options()) > 0 )
+					monster_footstep( atoi(pEvent.options()) );
+				else
+					monster_footstep();
+
 				break;
 			}
 
@@ -140,9 +144,9 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		else
 			return false;
 
-		//if( skill->value == 0 )
-			//flChance *= 0.5;
-		//else if( skill->value >= 2 )
+		if( q2::g_iDifficulty == q2::DIFF_EASY )
+			flChance *= 0.5;
+		else if( q2::g_iDifficulty >= q2::DIFF_HARD )
 			flChance *= 2.0;
 
 		if( Math.RandomFloat(0.0, 1.0) < flChance )
