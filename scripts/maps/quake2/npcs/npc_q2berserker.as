@@ -15,9 +15,8 @@ const Vector NPC_MAXS					= Vector( 16, 16, 80 ); //56 in original
 
 const int NPC_HEALTH					= 240;
 
-const int AE_ATTACK_SPIKE			= 6;
-const int AE_ATTACK_CLUB				= 7;
-const int AE_FLINCHRESET				= 8;
+const int AE_ATTACK_SPIKE			= 11;
+const int AE_ATTACK_CLUB				= 12;
 
 const float SPIKE_DMG_MIN			= 5.0;
 const float SPIKE_DMG_MAX			= 11.0;
@@ -50,9 +49,17 @@ enum q2sounds_e
 	SND_DEATH
 };
 
+const array<string> arrsNPCAnims =
+{
+	"flinch",
+	"flinch_heavy",
+	"death1",
+	"death2"
+};
+
 enum anim_e
 {
-	ANIM_PAIN1 = 11,
+	ANIM_PAIN1 = 0,
 	ANIM_PAIN2,
 	ANIM_DEATH1,
 	ANIM_DEATH2
@@ -67,7 +74,9 @@ final class npc_q2berserker : CBaseQ2NPC
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
 		g_EntityFuncs.SetSize( self.pev, NPC_MINS, NPC_MAXS );
 
-		pev.health						= NPC_HEALTH;
+		if( pev.health <= 0 )
+			pev.health						= NPC_HEALTH * m_flHealthMultiplier;
+
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
@@ -79,13 +88,7 @@ final class npc_q2berserker : CBaseQ2NPC
 
 		m_flGibHealth = -60.0;
 
-		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-		{
-			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
-			else
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
-		}
+		CommonSpawn();
 
 		self.MonsterInit();
 
@@ -157,12 +160,6 @@ final class npc_q2berserker : CBaseQ2NPC
 				MeleeAttack( true );
 				break;
 			}
-
-			case AE_FLINCHRESET:
-			{
-				self.SetActivity( ACT_RESET );
-				break;
-			}
 		}
 	}
 
@@ -221,22 +218,23 @@ final class npc_q2berserker : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		if( pev.health < (pev.max_health / 2) )
+			pev.skin |= 1;
+		else
+			pev.skin &= ~1;
+
 		pevAttacker.frags += ( flDamage/90 );
 
-		HandlePain( flDamage );
+		pev.dmg = flDamage;
+
+		if( pev.deadflag == DEAD_NO )
+			HandlePain( flDamage );
 
 		return BaseClass.TakeDamage( pevInflictor, pevAttacker, flDamage, bitsDamageType );
 	}
 
 	void HandlePain( float flDamage )
 	{
-		pev.dmg = flDamage;
-
-		if( pev.deadflag != DEAD_NO ) return;
-
-		if( pev.health < (pev.max_health / 2) )
-			pev.skin |= 1;
-
 		// if we're jumping, don't pain
 		/*if ((self.monsterinfo.active_move == &berserk_move_jump) ||
 			(self.monsterinfo.active_move == &berserk_move_jump2) ||
@@ -256,9 +254,9 @@ final class npc_q2berserker : CBaseQ2NPC
 			return;
 
 		if( flDamage <= 50 or Math.RandomFloat(0.0, 1.0) < 0.5 )
-			SetAnim( ANIM_PAIN1 );
+			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1])  );
 		else
-			SetAnim( ANIM_PAIN2 );
+			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2])  );
 	}
 
 	void StartTask( Task@ pTask )
@@ -268,9 +266,9 @@ final class npc_q2berserker : CBaseQ2NPC
 			case TASK_DIE:
 			{
 				if( pev.dmg >= 50 )
-					SetAnim( ANIM_DEATH1 );
+					SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_DEATH1])  );
 				else
-					SetAnim( ANIM_DEATH2 );
+					SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_DEATH2])  );
 
 				break;
 			}

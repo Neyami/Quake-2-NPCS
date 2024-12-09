@@ -15,11 +15,10 @@ const Vector NPC_MAXS					= Vector( 32, 32, 90 ); //66 in original
 
 const int NPC_HEALTH					= 400;
 
-const int AE_ATTACK_MELEE			= 6;
-const int AE_ATTACK_SAVELOC		= 7;
-const int AE_ATTACK_RAILGUN		= 8;
-const int AE_DEATHSOUND				= 9;
-const int AE_FLINCHRESET				= 10;
+const int AE_ATTACK_MELEE			= 11;
+const int AE_ATTACK_SAVELOC		= 12;
+const int AE_ATTACK_RAILGUN		= 13;
+const int AE_DEATHSOUND				= 14;
 
 const float MELEE_DMG_MIN			= 20.0;
 const float MELEE_DMG_MAX			= 25.0;
@@ -58,10 +57,16 @@ enum q2sounds_e
 	SND_DEATH2
 };
 
+const array<string> arrsNPCAnims =
+{
+	"flinch",
+	"painup"
+};
+
 enum anim_e
 {
-	ANIM_PAIN = 5,
-	ANIM_PAIN_AIR = 7
+	ANIM_PAIN = 0,
+	ANIM_PAIN_AIR
 };
 
 final class npc_q2gladiator : CBaseQ2NPC
@@ -75,7 +80,9 @@ final class npc_q2gladiator : CBaseQ2NPC
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
 		g_EntityFuncs.SetSize( self.pev, NPC_MINS, NPC_MAXS );
 
-		pev.health						= NPC_HEALTH;
+		if( pev.health <= 0 )
+			pev.health						= NPC_HEALTH * m_flHealthMultiplier;
+
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
@@ -87,13 +94,7 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 		m_flGibHealth = -175.0;
 
-		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-		{
-			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
-			else
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
-		}
+		CommonSpawn();
 
 		self.MonsterInit();
 
@@ -198,12 +199,6 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 				break;
 			}
-
-			case AE_FLINCHRESET:
-			{
-				self.SetActivity( ACT_RESET );
-				break;
-			}
 		}
 	}
 
@@ -264,26 +259,27 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		if( pev.health < (pev.max_health / 2) )
+			pev.skin |= 1;
+		else
+			pev.skin &= ~1;
+
 		pevAttacker.frags += ( flDamage/90 );
 
-		HandlePain( flDamage );
+		pev.dmg = flDamage;
+
+		if( pev.deadflag == DEAD_NO )
+			HandlePain( flDamage );
 
 		return BaseClass.TakeDamage( pevInflictor, pevAttacker, flDamage, bitsDamageType );
 	}
 
 	void HandlePain( float flDamage )
 	{
-		pev.dmg = flDamage;
-
-		if( pev.deadflag != DEAD_NO ) return;
-
-		if( pev.health < (pev.max_health / 2) )
-			pev.skin |= 1;
-
 		if( g_Engine.time < pev.pain_finished )
 		{
-			if( pev.velocity.z > 100 and GetAnim(ANIM_PAIN) )
-				SetAnim( ANIM_PAIN_AIR );
+			if( pev.velocity.z > 100 and GetAnim(self.LookupSequence(arrsNPCAnims[ANIM_PAIN])) )
+				SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN_AIR]) );
 
 			return;
 		}
@@ -297,9 +293,9 @@ final class npc_q2gladiator : CBaseQ2NPC
 			return;
 
 		if( pev.velocity.z > 100 )
-			SetAnim( ANIM_PAIN_AIR );
+			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN_AIR]) );
 		else
-			SetAnim( ANIM_PAIN );
+			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN]) );
 	}
 
 	void GibMonster()

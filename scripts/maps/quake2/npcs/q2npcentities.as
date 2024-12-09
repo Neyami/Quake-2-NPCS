@@ -174,7 +174,7 @@ class q2grenadenpc : ScriptBaseEntity
 		g_EntityFuncs.SetSize( self.pev, Vector(-0.5, -0.5, -0.5), Vector(0.5, 0.5, 0.5) );
 		g_EntityFuncs.SetOrigin( self, self.pev.origin );
 
-		pev.movetype = MOVETYPE_BOUNCE; //MOVETYPE_TOSS;
+		pev.movetype = MOVETYPE_BOUNCE;
 		pev.solid = SOLID_BBOX;
 		pev.avelocity = Vector( 300, 300, 300 );
 
@@ -257,6 +257,9 @@ class q2grenadenpc : ScriptBaseEntity
 
 class q2rocketnpc : ScriptBaseEntity
 {
+	protected EHandle m_hEnemy;
+	protected Vector m_vecMoveDir;
+
 	protected EHandle m_hGlow;
 	protected CSprite@ m_pGlow
 	{
@@ -272,12 +275,19 @@ class q2rocketnpc : ScriptBaseEntity
 		g_EntityFuncs.SetSize( self.pev, g_vecZero, g_vecZero );
 		g_EntityFuncs.SetOrigin( self, pev.origin );
 		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, "quake2/weapons/rocket_fly.wav", 1, ATTN_NORM );
-		pev.movetype = MOVETYPE_FLY;
 
+		pev.movetype = MOVETYPE_FLYMISSILE;
 		pev.solid = SOLID_BBOX;
 		pev.effects |= EF_DIMLIGHT;
 
+		m_vecMoveDir = pev.velocity / pev.speed;
 		Glow();
+
+		if( pev.weapons == 1 )
+		{
+			SetThink( ThinkFunction(this.HeatseekThink) );
+			pev.nextthink = g_Engine.time + 0.025; //FRAME_TIME_MS
+		}
 	}
 
 	void Precache()
@@ -291,6 +301,95 @@ class q2rocketnpc : ScriptBaseEntity
 
 		g_SoundSystem.PrecacheSound( "quake2/weapons/rocket_fly.wav" );
 		g_SoundSystem.PrecacheSound( "quake2/weapons/rocket_explode.wav" );
+		g_SoundSystem.PrecacheSound( "quake2/weapons/railgr1a.wav" );
+	}
+
+	void HeatseekThink()
+	{
+		CBaseEntity@ pTarget = null;
+		CBaseEntity@ pAcquire = null;
+		CBaseEntity@ pOwner = g_EntityFuncs.Instance( pev.owner );
+
+		if( pOwner is null ) return;
+
+		Vector vecDir;
+		Vector vecOldang;
+		Vector vecForward;
+
+		float flLen;
+		float flOldlen = 0.0;
+		float flDot, flOlddot = 1.0;
+
+		g_EngineFuncs.AngleVectors( pev.angles, vecForward, void, void );
+
+		// acquire new target
+		while( (@pTarget = g_EntityFuncs.FindEntityInSphere(pTarget, pev.origin, 1024.0, "*", "classname")) !is null ) 
+		{
+			if( pev.owner is pTarget.edict() )
+				continue;
+
+			if( pTarget.pev.takedamage == DAMAGE_NO )
+				continue;
+
+			//don't follow fellow oniichans
+			if( pOwner.IRelationship(pTarget) <= R_NO )
+				continue;
+
+			//if( pTarget.pev.FlagBitSet(FL_CLIENT) )
+				//continue;
+
+			if( pTarget.pev.health <= 0 )
+				continue;
+
+			if( !self.FVisible(pTarget, false) )
+				continue;
+
+			vecDir = pev.origin - pTarget.pev.origin;
+			flLen = vecDir.Length();
+
+			flDot = DotProduct(vecDir.Normalize(), vecForward ); //vecDir.normalized().dot(vecForward);
+
+			// targets that require us to turn less are preferred
+			if( flDot >= flOlddot )
+				continue;
+
+			if( pAcquire is null or flDot < flOlddot or flLen < flOldlen )
+			{
+				@pAcquire = pTarget;
+				flOldlen = flLen;
+				flOlddot = flDot;
+			}
+		}
+
+		if( pAcquire !is null )
+		{
+			vecOldang = pev.angles;
+			vecDir = (pAcquire.pev.origin - pev.origin).Normalize();
+			float flTurnRatio = 0.075;
+
+			if( pev.frags > 0.0 )
+				flTurnRatio = pev.frags;
+
+			m_vecMoveDir = pev.velocity / pev.speed;
+			float d = DotProduct( m_vecMoveDir, vecDir ); //self->movedir.dot(vecDir);
+
+			if( d < 0.45 and d > -0.45 )
+				vecDir = -vecDir;
+
+			m_vecMoveDir = slerp( m_vecMoveDir, vecDir, flTurnRatio ).Normalize();
+			pev.angles = Math.VecToAngles( m_vecMoveDir );
+
+			if( !m_hEnemy.IsValid() ) //!self->enemy
+			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, "quake2/weapons/railgr1a.wav", VOL_NORM, 0.25 );
+				m_hEnemy = EHandle( pAcquire );
+			}
+		}
+		else
+			m_hEnemy = null;
+
+		pev.velocity = m_vecMoveDir * pev.speed;
+		pev.nextthink = g_Engine.time + 0.025; //FRAME_TIME_MS
 	}
 
 	void Glow()

@@ -10,9 +10,9 @@ const string MODEL_GIB_CHEST		= "models/quake2/monsters/soldier/gibs/chest.mdl";
 const string MODEL_GIB_GUN			= "models/quake2/monsters/soldier/gibs/gun.mdl";
 const string MODEL_GIB_HEAD		= "models/quake2/monsters/soldier/gibs/head.mdl";
 
-const int AE_ATTACK_SHOOT			= 6;
-const int AE_ATTACK_REFIRE1		= 7;
-const int AE_ATTACK_REFIRE2		= 8;
+const int AE_ATTACK_SHOOT			= 11;
+const int AE_ATTACK_REFIRE1		= 12;
+const int AE_ATTACK_REFIRE2		= 13;
 
 const int NPC_HEALTH_BLASTER		= 20;
 const float BLASTER_DAMAGE			= 5;
@@ -118,10 +118,12 @@ final class npc_q2soldier : CBaseQ2NPC
 		else if( pev.weapons == WEAPON_RANDOM )
 			pev.weapons = Math.RandomLong( WEAPON_BLASTER, WEAPON_MGUN );
 
+		float flHealth;
+
 		if( pev.weapons == WEAPON_SHOTGUN )
 		{
 			pev.skin = 2;
-			pev.health = NPC_HEALTH_SHOTGUN;
+			flHealth = NPC_HEALTH_SHOTGUN * m_flHealthMultiplier;
 
 			if( string(self.m_FormattedName).IsEmpty() )
 				self.m_FormattedName	= "Shotgun Guard";
@@ -129,7 +131,7 @@ final class npc_q2soldier : CBaseQ2NPC
 		else if( pev.weapons == WEAPON_MGUN )
 		{
 			pev.skin = 4;
-			pev.health = NPC_HEALTH_MGUN;
+			flHealth = NPC_HEALTH_MGUN * m_flHealthMultiplier;
 
 			if( string(self.m_FormattedName).IsEmpty() )
 				self.m_FormattedName	= "Machine Gun Guard";
@@ -137,11 +139,14 @@ final class npc_q2soldier : CBaseQ2NPC
 		else
 		{
 			pev.skin = 0;
-			pev.health = NPC_HEALTH_BLASTER;
+			flHealth = NPC_HEALTH_BLASTER * m_flHealthMultiplier;
 
 			if( string(self.m_FormattedName).IsEmpty() )
 				self.m_FormattedName	= "Light Guard";
 		}
+
+		if( pev.health <= 0 )
+			pev.health					= flHealth;
 
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
@@ -151,8 +156,7 @@ final class npc_q2soldier : CBaseQ2NPC
 
 		m_flGibHealth = -30.0;
 
-		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-			m_iWeaponType = Math.RandomLong(q2::WEAPON_BULLET, q2::WEAPON_BFG);
+		CommonSpawn();
 
 		self.MonsterInit();
 
@@ -180,13 +184,6 @@ final class npc_q2soldier : CBaseQ2NPC
 	void FollowerUse( CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue )
 	{
 		self.FollowerPlayerUse( pActivator, pCaller, useType, flValue );
-
-		/*CBaseEntity@ pTarget = self.m_hTargetEnt;
-		
-		if( pTarget is pActivator )
-			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_OK", 1.0, ATTN_NORM, 0, PITCH_NORM );
-		else
-			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_WAIT", 1.0, ATTN_NORM, 0, PITCH_NORM );*/
 	}
 
 	void SetYawSpeed() //SUPER IMPORTANT, NPC WON'T DO ANYTHING WITHOUT THIS :aRage:
@@ -410,22 +407,23 @@ final class npc_q2soldier : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		if( pev.health < (pev.max_health / 2) )
+			pev.skin |= 1;
+		else
+			pev.skin &= ~1;
+
 		pevAttacker.frags += ( flDamage/90 );
 
-		HandlePain( flDamage );
+		pev.dmg = flDamage;
+
+		if( pev.deadflag == DEAD_NO )
+			HandlePain( flDamage );
 
 		return BaseClass.TakeDamage( pevInflictor, pevAttacker, flDamage, bitsDamageType );
 	}
 
 	void HandlePain( float flDamage )
 	{
-		pev.dmg = flDamage;
-
-		if( pev.deadflag != DEAD_NO ) return;
-
-		if( pev.health < (pev.max_health / 2) )
-			pev.skin |= 1;
-
 		if( g_Engine.time < pev.pain_finished )
 		{
 			if( pev.velocity.z > 100 and (GetAnim(ANIM_PAIN1) or GetAnim(ANIM_PAIN2) or GetAnim(ANIM_PAIN3)) )

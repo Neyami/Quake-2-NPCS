@@ -6,6 +6,7 @@
 #include "npcs/npc_q2ironmaiden" //175 HP
 #include "npcs/npc_q2berserker" //240 HP
 #include "npcs/npc_q2gladiator" //400 HP
+#include "npcs/npc_q2tank" //750-1000 HP
 
 //for stadium4q2
 #include "../stadium4/env_te"
@@ -28,6 +29,7 @@ void MapInit()
 	npc_q2ironmaiden::Register();
 	npc_q2berserker::Register();
 	npc_q2gladiator::Register();
+	npc_q2tank::Register();
 
 	//for stadium4q2
 	g_CustomEntityFuncs.RegisterCustomEntity( "env_te_teleport", "env_te_teleport" );
@@ -46,6 +48,9 @@ int g_iChaosMode;
 const Vector DEFAULT_BULLET_SPREAD = VECTOR_CONE_3DEGREES;
 const Vector DEFAULT_SHOTGUN_SPREAD = VECTOR_CONE_5DEGREES;
 
+const int SPAWNFLAG_TANK_COMMANDER_GUARDIAN = 8;
+const int SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16;
+
 const array<string> g_arrsQ2Monsters =
 {
 	"npc_q2soldier",
@@ -53,9 +58,8 @@ const array<string> g_arrsQ2Monsters =
 	"npc_q2ironmaiden",
 	"npc_q2berserker",
 	"npc_q2gladiator",
-	"npc_q2berserker",
-	"npc_q2gladiator",
-	"npc_q2tank"
+	"npc_q2tank",
+	"npc_q2tankc"
 };
 
 const array<string> g_arrsQ2Projectiles =
@@ -70,7 +74,8 @@ enum animev_e
 {
 	AE_IDLESOUND = 3,
 	AE_WALKMOVE,
-	AE_FOOTSTEP
+	AE_FOOTSTEP,
+	AE_FLINCHRESET //HACK
 };
 
 enum diff_e
@@ -100,6 +105,7 @@ enum weapons_e
 	WEAPON_BLASTER,
 	WEAPON_GRENADE,
 	WEAPON_ROCKET,
+	WEAPON_HEATSEEKING,
 	WEAPON_RAILGUN,
 	WEAPON_BFG
 };
@@ -137,6 +143,8 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 					sDeathMsg = string(pVictim.pev.netname) + " was blasted by a Light Guard\n";
 				else if( pProjectile.pev.targetname == "npc_q2tank" )
 					sDeathMsg = string(pVictim.pev.netname) + " was blasted by a Tank\n";
+				else if( pProjectile.pev.targetname == "npc_q2tankc" )
+					sDeathMsg = string(pVictim.pev.netname) + " was blasted by a Tank Commander\n";
 			}
 			else if( pProjectile.GetClassname() == "q2rocketnpc" )
 			{
@@ -146,6 +154,13 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 						sDeathMsg = string(pVictim.pev.netname) + " almost dodged a Tank's rocket\n";
 					else
 						sDeathMsg = string(pVictim.pev.netname) + " ate a Tank's rocket\n";
+				}
+				else if( pProjectile.pev.targetname == "npc_q2tankc" )
+				{
+					if( Math.RandomLong(1, 10) <= 5 )
+						sDeathMsg = string(pVictim.pev.netname) + " almost dodged a Tank Commander's rocket\n";
+					else
+						sDeathMsg = string(pVictim.pev.netname) + " ate a Tank Commander's rocket\n";
 				}
 				else if( pProjectile.pev.targetname == "npc_q2ironmaiden" )
 				{
@@ -161,6 +176,9 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 			return HOOK_CONTINUE;
 		}
 	}
+
+	if( pDamageInfo.pAttacker is null )
+		return HOOK_CONTINUE;
 
 	if( g_arrsQ2Monsters.find(pDamageInfo.pAttacker.GetClassname()) >= 0 )
 	{
@@ -209,12 +227,42 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 				if( (pDamageInfo.bitsDamageType & DMG_BULLET) != 0 )
 					sDeathMsg = string(pVictim.pev.netname) + " was pumped full of lead by a Tank\n";
 			}
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2tankc" )
+			{
+				if( (pDamageInfo.bitsDamageType & DMG_BULLET) != 0 )
+					sDeathMsg = string(pVictim.pev.netname) + " was pumped full of lead by a Tank Commander\n";
+			}
 
 			g_PlayerFuncs.ClientPrintAll( HUD_PRINTNOTIFY, sDeathMsg );
 		}
 	}
 
 	return HOOK_CONTINUE;
+}
+
+//from quake 2 rerelease
+Vector slerp( const Vector &in vecFrom, const Vector &in vecTo, float t )
+{
+	float flDot = DotProduct( vecFrom, vecTo );
+    float aFactor;
+    float bFactor;
+
+    if( flDot > 0.9995 ) //fabsf(flDot)
+    {
+        aFactor = 1.0 - t;
+        bFactor = t;
+    }
+    else
+    {
+        float ang = acos( flDot );
+        float sinOmega = sin( ang );
+        float sinAOmega = sin( (1.0 - t) * ang );
+        float sinBOmega = sin( t * ang );
+        aFactor = sinAOmega / sinOmega;
+        bFactor = sinBOmega / sinOmega;
+    }
+
+    return vecFrom * aFactor + vecTo * bFactor;
 }
 
 } //end of namespace q2

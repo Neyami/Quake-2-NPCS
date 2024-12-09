@@ -15,11 +15,10 @@ const Vector NPC_MAXS					= Vector( 16, 16, 80 );
 
 const int NPC_HEALTH					= 100;
 
-const int AE_MELEEATTACK				= 6;
-const int AE_DECAPITATE				= 7;
-const int AE_DEATHSHOT				= 8;
-const int AE_COCKGUN					= 9;
-const int AE_SHOOTGUN					= 10;
+const int AE_MELEEATTACK				= 11;
+const int AE_DECAPITATE				= 12;
+const int AE_DEATHSHOT				= 13;
+const int AE_SHOOTGUN					= 14;
 
 const float GUN_DAMAGE				= 3.0;
 const Vector GUN_SPREAD				= VECTOR_CONE_3DEGREES;
@@ -35,10 +34,10 @@ const array<string> arrsNPCSounds =
 	"quake2/npcs/enforcer/infidle1.wav",
 	"quake2/npcs/enforcer/infsght1.wav",
 	"quake2/npcs/enforcer/infsrch1.wav",
-	"quake2/npcs/enforcer/infatck3.wav",
 	"quake2/npcs/enforcer/infatck1.wav",
 	"quake2/npcs/enforcer/infatck2.wav",
 	"quake2/npcs/enforcer/melee2.wav",
+	"quake2/npcs/enforcer/infatck3.wav",
 	"quake2/npcs/enforcer/infpain1.wav",
 	"quake2/npcs/enforcer/infpain2.wav",
 	"quake2/npcs/enforcer/infdeth1.wav",
@@ -51,31 +50,9 @@ enum q2sounds_e
 	SND_IDLE,
 	SND_SIGHT,
 	SND_SEARCH,
-	SND_COCK,
 	SND_SHOOT,
 	SND_MELEE,
 	SND_MELEE_HIT
-};
-
-enum anim_e
-{
-	ANIM_IDLE = 0,
-	ANIM_IDLE_FIDGET,
-	ANIM_WALK,
-	ANIM_RUN,
-	ANIM_RUN_SHOOT,
-	ANIM_PAIN1,
-	ANIM_PAIN2,
-	ANIM_DUCK,
-	ANIM_DEATH1,
-	ANIM_DEATH2,
-	ANIM_DEATH3,
-	ANIM_DEFEND,
-	ANIM_GUN_NOCOCK,
-	ANIM_GUN_START,
-	ANIM_GUN_LOOP,
-	ANIM_GUN_END,
-	ANIM_MELEE
 };
 
 final class npc_q2enforcer : CBaseQ2NPC
@@ -89,7 +66,9 @@ final class npc_q2enforcer : CBaseQ2NPC
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
 		g_EntityFuncs.SetSize( self.pev, NPC_MINS, NPC_MAXS );
 
-		pev.health						= NPC_HEALTH;
+		if( pev.health <= 0 )
+			pev.health						= NPC_HEALTH * m_flHealthMultiplier;
+
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
@@ -101,13 +80,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 		m_flGibHealth = -65.0;
 
-		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
-		{
-			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
-			else
-				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
-		}
+		CommonSpawn();
 
 		self.MonsterInit();
 
@@ -135,13 +108,6 @@ final class npc_q2enforcer : CBaseQ2NPC
 	void FollowerUse( CBaseEntity@ pActivator, CBaseEntity@ pCaller, USE_TYPE useType, float flValue )
 	{
 		self.FollowerPlayerUse( pActivator, pCaller, useType, flValue );
-
-		/*CBaseEntity@ pTarget = self.m_hTargetEnt;
-		
-		if( pTarget is pActivator )
-			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_OK", 1.0, ATTN_NORM, 0, PITCH_NORM );
-		else
-			g_SoundSystem.PlaySentenceGroup( self.edict(), "BA_WAIT", 1.0, ATTN_NORM, 0, PITCH_NORM );*/
 	}
 
 	void SetYawSpeed() //SUPER IMPORTANT, NPC WON'T DO ANYTHING WITHOUT THIS :aRage:
@@ -191,13 +157,6 @@ final class npc_q2enforcer : CBaseQ2NPC
 				}
 				else
 					m_flMeleeCooldown = g_Engine.time + MELEE_CD;
-
-				break;
-			}
-
-			case AE_COCKGUN:
-			{
-				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_COCK], VOL_NORM, ATTN_NORM );
 
 				break;
 			}
@@ -273,22 +232,23 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		if( pev.health < (pev.max_health / 2) )
+			pev.skin |= 1;
+		else
+			pev.skin &= ~1;
+
 		pevAttacker.frags += ( flDamage/90 );
 
-		HandlePain( flDamage );
+		pev.dmg = flDamage;
+
+		if( pev.deadflag == DEAD_NO )
+			HandlePain( flDamage );
 
 		return BaseClass.TakeDamage( pevInflictor, pevAttacker, flDamage, bitsDamageType );
 	}
 
 	void HandlePain( float flDamage )
 	{
-		pev.dmg = flDamage;
-
-		if( pev.deadflag != DEAD_NO ) return;
-
-		if( pev.health < (pev.max_health / 2) )
-			pev.skin |= 1;
-
 		if( g_Engine.time < pev.pain_finished )
 			return;
 

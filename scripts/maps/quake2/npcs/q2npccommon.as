@@ -27,16 +27,11 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	protected float m_flGibHealth;
 	protected float m_flAttackFinished;
 	protected float m_flNextIdle;
+	protected float m_flHeatTurnRate; //for heat-seeking rockets
+	protected float m_flHealthMultiplier = 1.0;
+
 	protected int m_iStepLeft;
 	protected int m_iWeaponType;
-
-	int ObjectCaps()
-	{
-		if( self.IsPlayerAlly() ) 
-			return (BaseClass.ObjectCaps() | FCAP_IMPULSE_USE);
-
-		return BaseClass.ObjectCaps();
-	}
 
 	bool KeyValue( const string& in szKey, const string& in szValue )
 	{
@@ -47,8 +42,37 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			return true;
 		}
+		else if( szKey == "health_multiplier" )
+		{
+			m_flHealthMultiplier = atof( szValue );
+
+			return true;
+		}
+		else if( CustomKeyValue(szKey, szValue) )
+			return true;
 		else
 			return BaseClass.KeyValue( szKey, szValue );
+	}
+
+	bool CustomKeyValue( const string& in szKey, const string& in szValue ) { return false; }
+
+	void CommonSpawn()
+	{
+		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
+		{
+			if( q2::g_iDifficulty < q2::DIFF_NIGHTMARE )
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_RAILGUN );
+			else
+				m_iWeaponType = Math.RandomLong( q2::WEAPON_BULLET, q2::WEAPON_BFG );
+		}
+	}
+
+	int ObjectCaps()
+	{
+		if( self.IsPlayerAlly() ) 
+			return (BaseClass.ObjectCaps() | FCAP_IMPULSE_USE);
+
+		return BaseClass.ObjectCaps();
 	}
 
 	void RunAI()
@@ -113,6 +137,13 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 				break;
 			}
 
+			//HACK
+			case q2::AE_FLINCHRESET:
+			{
+				self.SetActivity( ACT_RESET );
+				break;
+			}
+
 			default:
 			{
 				BaseClass.HandleAnimEvent( pEvent );
@@ -167,6 +198,14 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return true;
 	}
 
+	bool M_CheckClearShot()
+	{
+		if( self.m_hEnemy.IsValid() and self.FVisible(self.m_hEnemy, true) ) 
+			return true;
+
+		return false;
+	}
+
 	void PredictAim( EHandle hTarget, const Vector &in vecStart, float flBoltSpeed, bool bEyeHeight, float flOffset, Vector &out vecAimdir, Vector &out vecAimpoint )
 	{
 		Vector vecDir, vecTemp;
@@ -184,7 +223,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 		flDist = vecDir.Length();
 
-		// [Paril-KEX] if our current attempt is blocked, try the opposite one
+		//if our current attempt is blocked, try the opposite one
 		TraceResult tr;
 		g_Utility.TraceLine( vecStart, vecStart + vecDir, missile, self.edict(), tr ); //MASK_PROJECTILE
 
@@ -299,6 +338,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 				break;
 			}
 
+			case q2::WEAPON_HEATSEEKING:
+			{
+				monster_fire_rocket( vecMuzzle, vecAim, flDamage, flSpeed, true );
+				break;
+			}
+
 			case q2::WEAPON_RAILGUN:
 			{
 				monster_fire_railgun( vecMuzzle, vecAim, flDamage );
@@ -336,9 +381,9 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pLaser.pev.targetname = self.GetClassname(); //for death messages
 	}
 
-	void monster_fire_rocket( Vector vecStart, Vector vecDir, float flDamage, float flSpeed )
+	void monster_fire_rocket( Vector vecStart, Vector vecDir, float flDamage, float flSpeed, bool bHeatSeeking = false )
 	{
-		CBaseEntity@ pRocket = g_EntityFuncs.Create( "q2rocketnpc", vecStart, vecDir, false, self.edict() ); 
+		CBaseEntity@ pRocket = g_EntityFuncs.Create( "q2rocketnpc", vecStart, vecDir, true, self.edict() ); 
 		pRocket.pev.velocity = vecDir * flSpeed;
 		pRocket.pev.dmg = flDamage;
 		pRocket.pev.angles = Math.VecToAngles( vecDir.Normalize() );
@@ -347,6 +392,15 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			pRocket.pev.scale = 2.0;
 
 		pRocket.pev.targetname = self.GetClassname(); //for death messages
+
+		if( bHeatSeeking )
+		{
+			pRocket.pev.weapons = 1;
+			pRocket.pev.speed = flSpeed;
+			pRocket.pev.frags = m_flHeatTurnRate;
+		}
+
+		g_EntityFuncs.DispatchSpawn( pRocket.edict() );
 	}
 
 	void monster_fire_grenade( Vector vecStart, Vector vecVelocity, float flDamage )
