@@ -12,7 +12,7 @@ const string MODEL_GIB_HEAD				= "models/quake2/monsters/tank/gibs/head.mdl";
 const string MODEL_GIB_THIGH				= "models/quake2/monsters/tank/gibs/thigh.mdl";
 
 const Vector NPC_MINS							= Vector( -32, -32, 0 );
-const Vector NPC_MAXS							= Vector( 32, 32, 128 ); //88 in quake 2
+const Vector NPC_MAXS							= Vector( 32, 32, 113 ); //88 in quake 2
 
 const float NPC_HEALTH							= 750.0;
 const float NPC_HEALTH_COMM				= 1000.0;
@@ -122,7 +122,7 @@ final class npc_q2tank : CBaseQ2NPC
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 
-		self.m_bloodColor			= BLOOD_COLOR_RED;
+		self.m_bloodColor			= DONT_BLEED;
 		self.m_flFieldOfView		= 0.5;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
@@ -184,6 +184,9 @@ final class npc_q2tank : CBaseQ2NPC
 
 		return CLASS_ALIEN_MILITARY;
 	}
+
+	//don't run away at low health!
+	int IgnoreConditions() { return ( bits_COND_SEE_FEAR | bits_COND_LIGHT_DAMAGE | bits_COND_HEAVY_DAMAGE ); }
 
 	void IdleSoundQ2()
 	{
@@ -252,8 +255,6 @@ final class npc_q2tank : CBaseQ2NPC
 		{
 			case AE_ATTACK_MACHINEGUN:
 			{
-				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MACHINEGUN + Math.RandomLong(0, 4)], VOL_NORM, ATTN_NORM );
-
 				Vector vecMuzzle;
 				self.GetAttachment( 0, vecMuzzle, void );
 
@@ -266,8 +267,6 @@ final class npc_q2tank : CBaseQ2NPC
 
 			case AE_ATTACK_BLASTER:
 			{
-				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_BLASTER], VOL_NORM, ATTN_NORM );
-
 				Vector vecMuzzle;
 				self.GetAttachment( 2, vecMuzzle, void );
 
@@ -293,8 +292,6 @@ final class npc_q2tank : CBaseQ2NPC
 			//3 = Right rocket (looking at the tank)
 			case AE_ATTACK_ROCKET:
 			{
-				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_ROCKET], VOL_NORM, ATTN_NORM );
-
 				Vector vecMuzzle;
 				self.GetAttachment( 3, vecMuzzle, void );
 
@@ -335,6 +332,9 @@ final class npc_q2tank : CBaseQ2NPC
 
 	void TankMachineGun( Vector vecStart )
 	{
+		g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MACHINEGUN + Math.RandomLong(0, 4)], VOL_NORM, ATTN_NORM );
+		GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.1, self );
+
 		Vector vecBonePos;
 
 		g_EngineFuncs.GetBonePosition( self.edict(), 4, vecBonePos, void );
@@ -356,6 +356,9 @@ final class npc_q2tank : CBaseQ2NPC
 	{
 		if( !self.m_hEnemy.IsValid() )
 			return;
+
+		g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_BLASTER], VOL_NORM, ATTN_NORM );
+		GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.1, self );
 
 		Vector vecAim;
 		PredictAim( self.m_hEnemy, vecStart, 0, false, 0.0, vecAim, void );
@@ -403,6 +406,9 @@ final class npc_q2tank : CBaseQ2NPC
 			g_Utility.TraceLine( vecStart, vecTrace, missile, self.edict(), tr );
 			if( tr.flFraction > 0.5 or tr.fAllSolid == 0 ) //trace.ent->solid != SOLID_BSP
 			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_ROCKET], VOL_NORM, ATTN_NORM );
+				GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.3, self );
+
 				monster_muzzleflash( vecStart, 255, 128, 51 );
 
 				if( (pev.weapons & q2::SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) != 0 ) 
@@ -427,9 +433,8 @@ final class npc_q2tank : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
-		//don't send the tank flying unless the damage is very high (nukes?)
-		if( flDamage < 500 )
-			bitsDamageType &= ~DMG_BLAST|DMG_LAUNCH;
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
 
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
@@ -442,6 +447,10 @@ final class npc_q2tank : CBaseQ2NPC
 
 		if( pev.deadflag == DEAD_NO )
 			HandlePain( flDamage , pevInflictor.classname );
+
+		//don't send the tank flying unless the damage is very high (nukes?)
+		if( flDamage < 500 )
+			bitsDamageType &= ~DMG_BLAST|DMG_LAUNCH;
 
 		return BaseClass.TakeDamage( pevInflictor, pevAttacker, flDamage, bitsDamageType );
 	}

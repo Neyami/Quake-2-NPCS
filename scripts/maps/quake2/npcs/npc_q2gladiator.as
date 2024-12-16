@@ -209,7 +209,7 @@ final class npc_q2gladiator : CBaseQ2NPC
 		CBaseEntity@ pHurt = CheckTraceHullAttack( Q2_MELEE_DISTANCE, flDamage, DMG_SLASH );
 		if( pHurt !is null )
 		{
-			if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) )
+			if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) and pHurt.pev.size.z <= 88.0 )
 			{
 				pHurt.pev.punchangle.x = 5;
 				Math.MakeVectors( pev.angles );
@@ -224,13 +224,14 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 	void GladiatorGun()
 	{
+		GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.3, self );
+
 		pev.framerate = 1.0;
 
 		Vector vecMuzzle;
 		self.GetAttachment( 0, vecMuzzle, void );
 
 		monster_muzzleflash( vecMuzzle, 128, 128, 255 );
-		//monster_fire_railgun( vecMuzzle, m_vecEnemyDir, RAILGUN_DAMAGE );
 		monster_fire_weapon( q2::WEAPON_RAILGUN, vecMuzzle, m_vecEnemyDir, RAILGUN_DAMAGE );
 	}
 
@@ -259,6 +260,9 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
+
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
 		else

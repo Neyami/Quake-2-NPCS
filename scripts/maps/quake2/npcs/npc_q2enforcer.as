@@ -145,7 +145,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 				CBaseEntity@ pHurt = CheckTraceHullAttack( Q2_MELEE_DISTANCE, iDamage, DMG_GENERIC );
 				if( pHurt !is null )
 				{
-					if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) )
+					if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) and pHurt.pev.size.z <= 88.0 )
 					{
 						pHurt.pev.punchangle.x = 5;
 						Math.MakeVectors( pev.angles );
@@ -154,6 +154,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 					}
 
 					g_SoundSystem.EmitSound( self.edict(), CHAN_BODY, arrsNPCSounds[SND_MELEE_HIT], VOL_NORM, ATTN_NORM );
+					GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 92, 0.3, self );
 				}
 				else
 					m_flMeleeCooldown = g_Engine.time + MELEE_CD;
@@ -232,6 +233,9 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
+
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
 		else
@@ -289,6 +293,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 	void InfantryMachineGun()
 	{
 		g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_SHOOT], VOL_NORM, ATTN_NORM );
+		GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.1, self );
 
 		Vector vecMuzzle, vecAim;
 
@@ -310,7 +315,6 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 		MachineGunEffects( vecMuzzle, 3 );
 
-		//monster_fire_bullet( vecMuzzle, vecAim, GUN_DAMAGE, GUN_SPREAD );
 		monster_fire_weapon( q2::WEAPON_BULLET, vecMuzzle, vecAim, GUN_DAMAGE );
 	}
 

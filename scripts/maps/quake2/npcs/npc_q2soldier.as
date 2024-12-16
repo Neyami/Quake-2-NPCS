@@ -362,10 +362,10 @@ final class npc_q2soldier : CBaseQ2NPC
 		if( pev.weapons == WEAPON_SHOTGUN )
 		{
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_SHOTGUN], VOL_NORM, ATTN_NORM );
+			GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.3, self );
 
 			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			MachineGunEffects( vecMuzzle );
-			//monster_fire_shotgun( vecMuzzle, vecAim, SHOTGUN_DAMAGE, SHOTGUN_SPREAD, SHOTGUN_COUNT );
 			monster_fire_weapon( q2::WEAPON_SHOTGUN, vecMuzzle, vecAim, SHOTGUN_DAMAGE );
 		}
 		else if( pev.weapons == WEAPON_MGUN )
@@ -374,10 +374,11 @@ final class npc_q2soldier : CBaseQ2NPC
 				m_flStopShooting = g_Engine.time + Math.RandomFloat( 0.3, 1.1 );
 
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MGUN], VOL_NORM, ATTN_NORM );
+			GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.1, self );
 
 			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			MachineGunEffects( vecMuzzle );
-			//monster_fire_bullet( vecMuzzle, vecAim, MGUN_DAMAGE, MGUN_SPREAD );
+
 			monster_fire_weapon( q2::WEAPON_BULLET, vecMuzzle, vecAim, MGUN_DAMAGE );
 
 			if( g_Engine.time < m_flStopShooting )
@@ -398,6 +399,7 @@ final class npc_q2soldier : CBaseQ2NPC
 			vecAim = vecAim + x * BLASTER_SPREAD.x * g_Engine.v_right + y * BLASTER_SPREAD.y * g_Engine.v_up;
 
 			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_BLASTER], VOL_NORM, ATTN_NORM );
+			GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 192, 0.3, self );
 
 			monster_muzzleflash( vecMuzzle, 255, 255, 0 );
 			//monster_fire_blaster( vecMuzzle, vecAim, BLASTER_DAMAGE, BLASTER_SPEED );
@@ -407,6 +409,9 @@ final class npc_q2soldier : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
+
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
 		else

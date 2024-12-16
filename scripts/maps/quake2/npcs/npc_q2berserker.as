@@ -175,13 +175,14 @@ final class npc_q2berserker : CBaseQ2NPC
 			{
 				Math.MakeVectors( pev.angles );
 
-				if( bClubAttack )
+				if( bClubAttack and pHurt.pev.size.z <= 88.0 )
 				{
 					pHurt.pev.punchangle.z = 18;
 					pHurt.pev.punchangle.x = 5;
+					
 					pHurt.pev.velocity = pHurt.pev.velocity + g_Engine.v_right * MELEE_KICK_CLUB;
 				}
-				else
+				else if( pHurt.pev.size.z <= 88.0 )
 				{
 					pHurt.pev.punchangle.x = 5;
 					pHurt.pev.velocity = pHurt.pev.velocity + g_Engine.v_forward * MELEE_KICK_SPIKE + g_Engine.v_up * (MELEE_KICK_SPIKE * 3.0);
@@ -218,6 +219,9 @@ final class npc_q2berserker : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
+
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
 		else

@@ -176,7 +176,7 @@ class q2grenadenpc : ScriptBaseEntity
 
 		pev.movetype = MOVETYPE_BOUNCE;
 		pev.solid = SOLID_BBOX;
-		pev.avelocity = Vector( 300, 300, 300 );
+		pev.avelocity = Vector( 360, 360, 360 );
 
 		SetThink( ThinkFunction(Explode) );
 		pev.nextthink = g_Engine.time + 2.5;
@@ -396,7 +396,7 @@ class q2rocketnpc : ScriptBaseEntity
 	{
 		@m_pGlow = g_EntityFuncs.CreateSprite( "sprites/blueflare1.spr", pev.origin, false ); 
 		m_pGlow.SetTransparency( 3, 100, 50, 0, 255, 14 );
-		m_pGlow.SetScale( 0.3 );
+		m_pGlow.SetScale( 0.3 * pev.scale );
 		m_pGlow.SetAttachment( self.edict(), 1 );
 	}
 
@@ -427,7 +427,7 @@ class q2rocketnpc : ScriptBaseEntity
 				else
 					m1.WriteShort( g_Game.PrecacheModel(pExplosionSprites[Math.RandomLong(0, pExplosionSprites.length() - 1)]) );
 
-				m1.WriteByte( 30 );//scale
+				m1.WriteByte( int(30 * pev.scale) );//scale
 				m1.WriteByte( 30 );//framerate
 				m1.WriteByte( TE_EXPLFLAG_NOSOUND | TE_EXPLFLAG_NOPARTICLES );
 			m1.End();
@@ -742,6 +742,57 @@ class q2bfgnpc : ScriptBaseEntity
 	}
 }
 
+class q2pscreen : ScriptBaseAnimating
+{
+	void Spawn()
+	{
+		Precache();
+
+		g_EntityFuncs.SetModel( self, "models/quake2/items/armor/effect/pscreen.mdl" );
+		g_EntityFuncs.SetSize( self.pev, g_vecZero, g_vecZero );
+		g_EntityFuncs.SetOrigin( self, pev.origin );
+
+		pev.movetype = MOVETYPE_NONE;
+		pev.solid = SOLID_NOT;
+
+		SetThink( ThinkFunction(this.RemoveThink) );
+		pev.nextthink = g_Engine.time;
+	}
+
+	void Precache()
+	{
+		g_Game.PrecacheModel( "models/quake2/items/armor/effect/pscreen.mdl" );
+
+		g_SoundSystem.PrecacheSound( "quake2/misc/mon_power2.wav" );
+		g_SoundSystem.PrecacheSound( "quake2/weapons/laser_hit.wav" );
+	}
+
+	void RemoveThink()
+	{
+		if( pev.renderamt > 7 )
+		{
+			pev.renderamt -= 7;
+			pev.nextthink = g_Engine.time + 0.05;
+		}
+		else 
+		{
+			pev.renderamt = 0;
+			pev.nextthink = g_Engine.time;
+			SetThink( ThinkFunction(this.SUB_Remove) );
+		}
+	}
+
+	void SUB_Remove()
+	{
+		self.UpdateOnRemove();
+
+		if( pev.health > 0 )
+			pev.health = 0;
+
+		g_EntityFuncs.Remove(self);
+	}
+}
+
 void RegisterNPCRailbeam()
 {
 	g_CustomEntityFuncs.RegisterCustomEntity( "q2::q2railbeamnpc", "q2railbeamnpc" );
@@ -770,6 +821,12 @@ void RegisterNPCBFG()
 {
 	g_CustomEntityFuncs.RegisterCustomEntity( "q2::q2bfgnpc", "q2bfgnpc" );
 	g_Game.PrecacheOther( "q2bfgnpc" );
+}
+
+void RegisterNPCPScreen()
+{
+	g_CustomEntityFuncs.RegisterCustomEntity( "q2::q2pscreen", "q2pscreen" );
+	g_Game.PrecacheOther( "q2pscreen" );
 }
 
 void RegisterProjectile( string sType )

@@ -7,6 +7,7 @@
 #include "npcs/npc_q2berserker" //240 HP
 #include "npcs/npc_q2gladiator" //400 HP
 #include "npcs/npc_q2tank" //750-1000 HP
+#include "npcs/npc_q2supertank" //1500 HP
 
 //for stadium4q2
 #include "../stadium4/env_te"
@@ -30,6 +31,7 @@ void MapInit()
 	npc_q2berserker::Register();
 	npc_q2gladiator::Register();
 	npc_q2tank::Register();
+	npc_q2supertank::Register();
 
 	//for stadium4q2
 	g_CustomEntityFuncs.RegisterCustomEntity( "env_te_teleport", "env_te_teleport" );
@@ -59,7 +61,8 @@ const array<string> g_arrsQ2Monsters =
 	"npc_q2berserker",
 	"npc_q2gladiator",
 	"npc_q2tank",
-	"npc_q2tankc"
+	"npc_q2tankc",
+	"npc_q2supertank"
 };
 
 const array<string> g_arrsQ2Projectiles =
@@ -110,6 +113,13 @@ enum weapons_e
 	WEAPON_BFG
 };
 
+enum parmor_e
+{
+	POWER_ARMOR_NONE = 0,
+	POWER_ARMOR_SCREEN,
+	POWER_ARMOR_SHIELD
+};
+
 HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 {
 	/*g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] pVictim: " + pDamageInfo.pVictim.GetClassname() + "\n" );
@@ -148,7 +158,14 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 			}
 			else if( pProjectile.GetClassname() == "q2rocketnpc" )
 			{
-				if( pProjectile.pev.targetname == "npc_q2tank" )
+				if( pProjectile.pev.targetname == "npc_q2ironmaiden" )
+				{
+					if( Math.RandomLong(1, 10) <= 5 )
+						sDeathMsg = string(pVictim.pev.netname) + "  almost dodged an Iron Maiden's rocket\n";
+					else
+						sDeathMsg = string(pVictim.pev.netname) + " ate an Iron Maiden's rocket\n";
+				}
+				else if( pProjectile.pev.targetname == "npc_q2tank" )
 				{
 					if( Math.RandomLong(1, 10) <= 5 )
 						sDeathMsg = string(pVictim.pev.netname) + " almost dodged a Tank's rocket\n";
@@ -162,14 +179,28 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 					else
 						sDeathMsg = string(pVictim.pev.netname) + " ate a Tank Commander's rocket\n";
 				}
-				else if( pProjectile.pev.targetname == "npc_q2ironmaiden" )
+				else if( pProjectile.pev.targetname == "npc_q2supertank" )
 				{
 					if( Math.RandomLong(1, 10) <= 5 )
-						sDeathMsg = string(pVictim.pev.netname) + "  almost dodged an Iron Maiden's rocket\n";
+						sDeathMsg = string(pVictim.pev.netname) + " almost dodged a Super Tank's rocket\n";
 					else
-						sDeathMsg = string(pVictim.pev.netname) + " ate an Iron Maiden's rocket\n";
+						sDeathMsg = string(pVictim.pev.netname) + " ate a Super Tank's rocket\n";
 				}
 			}
+			else if( pProjectile.GetClassname() == "q2grenadenpc" )
+			{
+				if( pProjectile.pev.targetname == "npc_q2supertank" )
+					sDeathMsg = string(pVictim.pev.netname) + " was popped by a Super Tank's grenade\n";
+			}
+			else if( pProjectile.GetClassname() == "q2bfgnpc" )
+			{
+				if( pProjectile.pev.targetname == "npc_q2makron" )
+					sDeathMsg = string(pVictim.pev.netname) + " was BFGd by Makron\n";
+				else
+					return HOOK_CONTINUE;
+			}
+			else
+				return HOOK_CONTINUE;
 
 			g_PlayerFuncs.ClientPrintAll( HUD_PRINTNOTIFY, sDeathMsg );
 
@@ -232,6 +263,13 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 				if( (pDamageInfo.bitsDamageType & DMG_BULLET) != 0 )
 					sDeathMsg = string(pVictim.pev.netname) + " was pumped full of lead by a Tank Commander\n";
 			}
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2supertank" )
+			{
+				if( (pDamageInfo.bitsDamageType & DMG_BULLET) != 0 )
+					sDeathMsg = string(pVictim.pev.netname) + " was pumped full of lead by a Super Tank\n";
+				else
+					return HOOK_CONTINUE;
+			}
 
 			g_PlayerFuncs.ClientPrintAll( HUD_PRINTNOTIFY, sDeathMsg );
 		}
@@ -272,7 +310,12 @@ Vector slerp( const Vector &in vecFrom, const Vector &in vecTo, float t )
 
 /* TODO
 	Try to fix flinching
+
 	Add blindfire ??
-	Add ducking ??
+
+	Add ducking/dodging/blocking ??
+
 	Make use of m_flGibHealth ??
+
+	Figure out how to make monsters not run away when at low health
 */

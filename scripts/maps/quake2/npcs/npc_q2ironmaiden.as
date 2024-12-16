@@ -168,13 +168,14 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 			case AE_MELEE:
 			{
 				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MELEE_SWING], VOL_NORM, ATTN_IDLE );
+				GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 96, 0.3, self );
 
 				int iDamage = Math.RandomLong( MELEE_DMG_MIN, MELEE_DMG_MAX );
 
 				CBaseEntity@ pHurt = CheckTraceHullAttack( Q2_MELEE_DISTANCE, iDamage, DMG_SLASH );
 				if( pHurt !is null )
 				{
-					if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) )
+					if( pHurt.pev.FlagBitSet(FL_MONSTER) or pHurt.pev.FlagBitSet(FL_CLIENT) and pHurt.pev.size.z <= 88.0 )
 					{
 						pHurt.pev.punchangle.x = 5;
 						Math.MakeVectors( pev.angles );
@@ -225,6 +226,7 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 	void ChickRocket()
 	{
 		g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_ROCKET_LAUNCH], VOL_NORM, ATTN_NORM );
+		GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.3, self );
 
 		Vector vecMuzzle, vecAim;
 
@@ -283,6 +285,9 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
+		float psave = CheckPowerArmor( pevInflictor, flDamage );
+		flDamage -= psave;
+
 		if( pev.health < (pev.max_health / 2) )
 			pev.skin |= 1;
 		else

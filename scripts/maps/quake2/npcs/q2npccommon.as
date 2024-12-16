@@ -23,6 +23,8 @@ enum steptype_e
 
 class CBaseQ2NPC : ScriptBaseMonsterEntity
 {
+	protected bool m_bRerelease = true; //should monsters have stuff from the rerelease of Quake 2 ?
+
 	protected float m_flMeleeCooldown;
 	protected float m_flGibHealth;
 	protected float m_flAttackFinished;
@@ -32,6 +34,10 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 	protected int m_iStepLeft;
 	protected int m_iWeaponType;
+
+	protected int m_iPowerArmorType;
+	protected int m_iPowerArmorPower;
+	protected float m_flArmorEffectOff;
 
 	bool KeyValue( const string& in szKey, const string& in szValue )
 	{
@@ -45,6 +51,23 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		else if( szKey == "health_multiplier" )
 		{
 			m_flHealthMultiplier = atof( szValue );
+
+			return true;
+		}
+		else if( szKey == "power_armor_type" )
+		{
+			if( atoi(szValue) == 1 )
+				m_iPowerArmorType = q2::POWER_ARMOR_SCREEN;
+			else if( atoi(szValue) == 2 )
+				m_iPowerArmorType = q2::POWER_ARMOR_SHIELD;
+			else
+				m_iPowerArmorType = q2::POWER_ARMOR_NONE;
+
+			return true;
+		}
+		else if( szKey == "power_armor_power" )
+		{
+			m_iPowerArmorPower = atoi( szValue );
 
 			return true;
 		}
@@ -79,8 +102,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	{
 		BaseClass.RunAI();
 
+		//to test model's eye height
+		//g_EngineFuncs.ParticleEffect( pev.origin + pev.view_ofs, g_vecZero, 255, 10 );
+
 		DoIdleSound();		
 		DoSearchSound();
+		CheckArmorEffect();
 	}
 
 	void DoIdleSound()
@@ -129,10 +156,13 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			case q2::AE_FOOTSTEP:
 			{
-				if( atoi(pEvent.options()) > 0 )
-					monster_footstep( atoi(pEvent.options()) );
-				else
-					monster_footstep();
+				if( m_bRerelease )
+				{
+					if( atoi(pEvent.options()) > 0 )
+						monster_footstep( atoi(pEvent.options()) );
+					else
+						monster_footstep();
+				}
 
 				break;
 			}
@@ -206,12 +236,20 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return false;
 	}
 
+	bool M_CheckClearShot( Vector vecOrigin )
+	{
+		if( self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().FVisible(vecOrigin) ) 
+			return true;
+
+		return false;
+	}
+
 	void PredictAim( EHandle hTarget, const Vector &in vecStart, float flBoltSpeed, bool bEyeHeight, float flOffset, Vector &out vecAimdir, Vector &out vecAimpoint )
 	{
 		Vector vecDir, vecTemp;
 		float flDist, flTime;
 
-		if( !hTarget.IsValid() /*or !hTarget->inuse*/ )
+		if( !hTarget.IsValid() /*or !hTarget.inuse*/ )
 		{
 			vecAimdir = g_vecZero;
 			return;
@@ -293,6 +331,122 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return null;
 	}
 
+	float CheckPowerArmor( entvars_t@ pevInflictor, float flDamage )
+	{
+		float flSave;
+		int iDamagePerCell;
+		int iPowerUsed;
+
+		if( pev.deadflag != DEAD_NO or flDamage <= 0 )
+			return 0;
+
+		//if( (dflags & DAMAGE_NO_ARMOR) != 0 ) // armour does not protect from this damage eg: drowning
+			//return 0;
+
+		if( m_iPowerArmorType == q2::POWER_ARMOR_NONE )
+			return 0;
+
+		if( m_iPowerArmorPower <= 0 )
+			return 0;
+
+		if( m_iPowerArmorType == q2::POWER_ARMOR_SCREEN )
+		{
+			//only works if damage point is in front
+			Math.MakeVectors( pev.angles );
+			Vector vecDir = (pevInflictor.origin - pev.origin).Normalize();
+			float flDot = DotProduct( vecDir, g_Engine.v_forward );
+
+			if( flDot <= 0.3 )
+				return 0;
+
+			iDamagePerCell = 1;
+			flDamage = flDamage / 3;
+		}
+		else
+		{
+			iDamagePerCell = 2;
+			flDamage = (2 * flDamage) / 3;
+		}
+
+		flSave = m_iPowerArmorPower * iDamagePerCell;
+
+		if( flSave <= 0 )
+			return 0;
+
+		if( flSave > flDamage )
+			flSave = flDamage;
+
+		TraceResult tr = g_Utility.GetGlobalTrace();
+		Vector vecDirSparks = ( pevInflictor.origin - self.Center() ).Normalize();
+		Vector vecOrigin = tr.vecEndPos - (vecDirSparks * pev.scale) * -42.0;
+
+		NetworkMessage m1( MSG_PVS, NetworkMessages::ShieldRic );
+			m1.WriteCoord( vecOrigin.x );
+			m1.WriteCoord( vecOrigin.y );
+			m1.WriteCoord( vecOrigin.z );
+		m1.End();
+
+		//For the power screen to be oriented correctly
+		Vector vecDir = (pevInflictor.origin - pev.origin).Normalize();
+		float flYaw = Math.VecToAngles(vecDir).y;
+
+		g_SoundSystem.EmitSound( self.edict(), CHAN_AUTO, "quake2/weapons/laser_hit.wav", VOL_NORM, ATTN_NORM );
+
+		if( m_iPowerArmorType == q2::POWER_ARMOR_SCREEN )
+			PowerArmorEffect( flYaw );
+		else if( m_iPowerArmorType == q2::POWER_ARMOR_SHIELD )
+			PowerArmorEffect( flYaw, false );
+
+		iPowerUsed = int(flSave) / iDamagePerCell;
+
+		m_iPowerArmorPower -= iPowerUsed;
+
+		if( m_iPowerArmorPower <= 0 )
+			g_SoundSystem.EmitSound( self.edict(), CHAN_ITEM, "quake2/misc/mon_power2.wav", VOL_NORM, ATTN_NORM );
+
+		return flSave;
+	}
+
+	void PowerArmorEffect( float flYaw = 0.0, bool bScreen = true )
+	{
+		if( !bScreen )
+		{
+			pev.renderfx = kRenderFxGlowShell;
+			pev.renderamt = 69;
+			pev.rendercolor = Vector( 0, 255, 0 );
+
+			m_flArmorEffectOff = g_Engine.time + 0.2;
+		}
+		else
+		{
+			float flOffset = ((pev.size.z * 0.5) * pev.scale);
+			CBaseEntity@ pScreenEffect = g_EntityFuncs.Create( "q2pscreen", pev.origin + Vector(0, 0, flOffset), Vector(0, flYaw, 0), false ); //22
+			if( pScreenEffect !is null )
+			{
+				pScreenEffect.pev.scale = ((pev.size.z * 0.42) * pev.scale);
+				pScreenEffect.pev.rendermode = kRenderTransColor;
+				pScreenEffect.pev.renderamt = 76.5; //30.0
+
+				//Push it out a bit
+				Math.MakeVectors( pScreenEffect.pev.angles );
+				flOffset = ((pev.size.x * 0.75) * pev.scale);
+				g_EntityFuncs.SetOrigin( pScreenEffect, pScreenEffect.pev.origin + g_Engine.v_forward * flOffset );
+			}
+		}
+	}
+
+	void CheckArmorEffect()
+	{
+		if( m_flArmorEffectOff > 0.0 and g_Engine.time > m_flArmorEffectOff )
+		{
+			pev.renderfx = kRenderFxNone;
+			pev.renderamt = 255;
+			pev.rendercolor = Vector( 0, 0, 0 );
+
+			m_flArmorEffectOff = 0.0;
+		}
+	}
+
 	//for chaos mode
 	void monster_fire_weapon( int iWeaponType, Vector vecMuzzle, Vector vecAim, float flDamage, float flSpeed = 600.0 )
 	{
@@ -328,7 +482,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			case q2::WEAPON_GRENADE:
 			{
-				monster_fire_grenade( vecMuzzle, vecAim * flSpeed, flDamage );
+				//monster_fire_grenade( vecMuzzle, vecAim * flSpeed, flDamage );
+				monster_fire_grenade( vecMuzzle, vecAim, flDamage );
 				break;
 			}
 
@@ -360,7 +515,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 	void monster_fire_bullet( Vector vecStart, Vector vecDir, float flDamage )
 	{
-		self.FireBullets( 1, vecStart, vecDir, q2::DEFAULT_BULLET_SPREAD, 2048, BULLET_PLAYER_CUSTOMDAMAGE, 1, int(flDamage), self.pev );
+		Vector vecSpread = q2::DEFAULT_BULLET_SPREAD;
+
+		if( self.GetClassname() == "npc_q2supertank" )
+			vecSpread = vecSpread * 3;
+
+		self.FireBullets( 1, vecStart, vecDir, vecSpread, 2048, BULLET_PLAYER_CUSTOMDAMAGE, 1, int(flDamage), self.pev );
 	}
 
 	void monster_fire_shotgun( Vector vecStart, Vector vecDir, float flDamage, int iCount = 9 )
@@ -379,6 +539,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pLaser.pev.dmg = flDamage;
 		pLaser.pev.angles = Math.VecToAngles( vecDir.Normalize() );
 		pLaser.pev.targetname = self.GetClassname(); //for death messages
+
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
+		{
+			pLaser.pev.velocity = vecDir;
+			pLaser.pev.movetype = MOVETYPE_TOSS;
+		}
 	}
 
 	void monster_fire_rocket( Vector vecStart, Vector vecDir, float flDamage, float flSpeed, bool bHeatSeeking = false )
@@ -401,6 +567,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		}
 
 		g_EntityFuncs.DispatchSpawn( pRocket.edict() );
+
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
+		{
+			pRocket.pev.velocity = vecDir;
+			pRocket.pev.movetype = MOVETYPE_TOSS;
+		}
 	}
 
 	void monster_fire_grenade( Vector vecStart, Vector vecVelocity, float flDamage )
@@ -418,6 +590,12 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pBFG.pev.velocity = vecDir * flSpeed;
 		pBFG.pev.dmg = flDamage;
 		pBFG.pev.targetname = self.GetClassname(); //for death messages
+
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
+		{
+			pBFG.pev.velocity = vecDir;
+			pBFG.pev.movetype = MOVETYPE_TOSS;
+		}
 	}
 
 	void monster_fire_railgun( Vector vecStart, Vector vecEnd, float flDamage )
@@ -517,7 +695,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			m1.WriteByte( 105 ); // framerate
 		m1.End();
 
-		NetworkMessage m2( MSG_PVS, NetworkMessages::SVC_TEMPENTITY, vecOrigin );
+		/*NetworkMessage m2( MSG_PVS, NetworkMessages::SVC_TEMPENTITY, vecOrigin );
 			m2.WriteByte( TE_DLIGHT );
 			m2.WriteCoord( vecOrigin.x );
 			m2.WriteCoord( vecOrigin.y );
@@ -528,7 +706,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			m2.WriteByte( 0 );
 			m2.WriteByte( 8 ); //lifetime
 			m2.WriteByte( 50 ); //decay
-		m2.End();
+		m2.End();*/
 	}
 
 	Vector closest_point_to_box( const Vector &in from, const Vector &in absmins, const Vector &in absmaxs )
@@ -547,6 +725,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			CGib@ pGib = g_EntityFuncs.CreateGib( pev.origin, g_vecZero );
 			pGib.Spawn( sGibName );
 			pGib.pev.skin = iSkin;
+			pGib.pev.scale = pev.scale;
 
 			if( iBone >= 0 )
 			{
@@ -833,6 +1012,129 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			vec = vec * 10;
 
 		return vec;
+	}
+
+	//
+	// VecCheckToss - returns the velocity at which an object should be lobbed from vecspot1 to land near vecspot2.
+	// returns g_vecZero if toss is not feasible.
+	// 
+	Vector VecCheckToss( const Vector &in vecSpot1, Vector vecSpot2, float flGravityAdj )
+	{
+		TraceResult		tr;
+		Vector			vecMidPoint;// halfway point between Spot1 and Spot2
+		Vector			vecApex;// highest point 
+		Vector			vecScale;
+		Vector			vecGrenadeVel;
+		Vector			vecTemp;
+		float			flGravity = g_EngineFuncs.CVarGetFloat("sv_gravity") * flGravityAdj;
+
+		if( vecSpot2.z - vecSpot1.z > 500 )
+		{
+			// to high, fail
+			return g_vecZero;
+		}
+
+		Math.MakeVectors( pev.angles );
+
+		// toss a little bit to the left or right, not right down on the enemy's bean (head). 
+		vecSpot2 = vecSpot2 + g_Engine.v_right * ( Math.RandomFloat(-8.0, 8.0) + Math.RandomFloat(-16.0, 16.0) );
+		vecSpot2 = vecSpot2 + g_Engine.v_forward * ( Math.RandomFloat(-8.0, 8.0) + Math.RandomFloat(-16.0, 16.0) );
+
+		// calculate the midpoint and apex of the 'triangle'
+		// UNDONE: normalize any Z position differences between spot1 and spot2 so that triangle is always RIGHT
+
+		// How much time does it take to get there?
+
+		// get a rough idea of how high it can be thrown
+		vecMidPoint = vecSpot1 + (vecSpot2 - vecSpot1) * 0.5;
+		g_Utility.TraceLine( vecMidPoint, vecMidPoint + Vector(0, 0, 500), ignore_monsters, self.edict(), tr );
+		vecMidPoint = tr.vecEndPos;
+		// (subtract 15 so the grenade doesn't hit the ceiling)
+		vecMidPoint.z -= 15;
+
+		if( vecMidPoint.z < vecSpot1.z or vecMidPoint.z < vecSpot2.z )
+		{
+			// to not enough space, fail
+			return g_vecZero;
+		}
+
+		// How high should the grenade travel to reach the apex
+		float distance1 = (vecMidPoint.z - vecSpot1.z);
+		float distance2 = (vecMidPoint.z - vecSpot2.z);
+
+		// How long will it take for the grenade to travel this distance
+		float time1 = sqrt( distance1 / (0.5 * flGravity) );
+		float time2 = sqrt( distance2 / (0.5 * flGravity) );
+
+		if( time1 < 0.1 )
+		{
+			// too close
+			return g_vecZero;
+		}
+
+		// how hard to throw sideways to get there in time.
+		vecGrenadeVel = (vecSpot2 - vecSpot1) / (time1 + time2);
+		// how hard upwards to reach the apex at the right time.
+		vecGrenadeVel.z = flGravity * time1;
+
+		// find the apex
+		vecApex  = vecSpot1 + vecGrenadeVel * time1;
+		vecApex.z = vecMidPoint.z;
+
+		g_Utility.TraceLine( vecSpot1, vecApex, dont_ignore_monsters, self.edict(), tr );
+		if( tr.flFraction != 1.0 )
+		{
+			// fail!
+			return g_vecZero;
+		}
+
+		// UNDONE: either ignore monsters or change it to not care if we hit our enemy
+		g_Utility.TraceLine( vecSpot2, vecApex, ignore_monsters, self.edict(), tr );
+		if( tr.flFraction != 1.0 )
+		{
+			// fail!
+			return g_vecZero;
+		}
+
+		return vecGrenadeVel;
+	}
+
+	//
+	// VecCheckThrow - returns the velocity vector at which an object should be thrown from vecspot1 to hit vecspot2.
+	// returns g_vecZero if throw is not feasible.
+	//  
+	Vector VecCheckThrow( const Vector& in vecSpot1, Vector vecSpot2, float flSpeed, float flGravityAdj )
+	{
+		float flGravity = g_EngineFuncs.CVarGetFloat("sv_gravity") * flGravityAdj;
+
+		Vector vecGrenadeVel = (vecSpot2 - vecSpot1);
+
+		// throw at a constant time
+		float time = vecGrenadeVel.Length() / flSpeed;
+		vecGrenadeVel = vecGrenadeVel * (1.0 / time);
+
+		// adjust upward toss to compensate for gravity loss
+		vecGrenadeVel.z += flGravity * time * 0.5;
+
+		Vector vecApex = vecSpot1 + (vecSpot2 - vecSpot1) * 0.5;
+		vecApex.z += 0.5 * flGravity * (time * 0.5) * (time * 0.5);
+
+		TraceResult tr;
+		g_Utility.TraceLine( vecSpot1, vecApex, dont_ignore_monsters, self.edict(), tr );
+		if( tr.flFraction != 1.0 )
+		{
+			// fail!
+			return g_vecZero;
+		}
+
+		g_Utility.TraceLine( vecSpot2, vecApex, ignore_monsters, self.edict(), tr );
+		if( tr.flFraction != 1.0 )
+		{
+			// fail!
+			return g_vecZero;
+		}
+
+		return vecGrenadeVel;
 	}
 
 	void WalkMove( float flDist )
