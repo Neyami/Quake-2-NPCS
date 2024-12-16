@@ -61,3 +61,11 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 
 <BR>
 
+
+# SUPER TANK #  
+[Video](https://youtu.be/s3EWMImdQoA?si=1WZc40cI0_HF2uSJ)  
+`npc_q2supertank`  
+
+
+<BR>
+
