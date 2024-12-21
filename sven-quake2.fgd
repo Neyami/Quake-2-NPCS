@@ -2,7 +2,7 @@
 [
     health_multiplier(string) : "Set health based on multiplier of base health" : "1.0"
 
-	power_armor_power(integer) : "Override power armor amount"
+	power_armor_power(integer) : "Override power armor amount" : "100"
 	power_armor_type(Choices) : "Override power armor type" : 0 =
     [
         0 : "None"
@@ -26,6 +26,8 @@
 
 @PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 80) studio("models/quake2/monsters/ironmaiden/ironmaiden.mdl") = npc_q2ironmaiden : "Quake 2 Iron Maiden" []
 
+@PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 42) studio("models/quake2/monsters/parasite/parasite.mdl") = npc_q2parasite : "Quake 2 Parasite" []
+
 @PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/berserker/berserker.mdl") = npc_q2berserker : "Quake 2 Berserker" []
 
 @PointClass base(Monster, Quake2) size(-32 -32 0, 32 32 90) studio("models/quake2/monsters/gladiator/gladiator.mdl") = npc_q2gladiator : "Quake 2 Gladiator" []
@@ -39,5 +41,13 @@
     [
         8 : "N64 Guardian"
 		16 : "Heat-Seeking Missiles"
+    ]
+]
+
+@PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/supertank/supertank.mdl") = npc_q2supertank : "Quake 2 Super Tank" 
+[
+    weapons(Choices) : "Custom Spawnflags" : 0 =
+    [
+        8 : "Boss (Power shield and heat-seeking rockets"
     ]
 ]
