@@ -78,7 +78,6 @@ const array<string> arrsNPCAnims =
 
 enum anim_e
 {
-	
 	ANIM_ROCKET = 0,
 	ANIM_PAIN1,
 	ANIM_PAIN2,
@@ -111,7 +110,7 @@ final class npc_q2supertank : CBaseQ2NPC
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= DONT_BLEED;
-		self.m_flFieldOfView		= -0.30; //VIEW_FIELD_FULL;
+		self.m_flFieldOfView		= -0.30;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
 		if( string(self.m_FormattedName).IsEmpty() )
@@ -505,13 +504,13 @@ final class npc_q2supertank : CBaseQ2NPC
 			return;
 
 		if( flDamage <= 10 )
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1])  );
+			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1]) );
 			self.m_IdealActivity = ACT_FLINCH_RIGHTARM;
 		else if( flDamage <= 25 )
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2])  );
+			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2]) );
 			self.m_IdealActivity = ACT_FLINCH_LEFTARM;
 		else
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN3])  );
+			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN3]) );
 			self.m_IdealActivity = ACT_BIG_FLINCH;
 	}
 

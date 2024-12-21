@@ -86,7 +86,7 @@ final class npc_q2gladiator : CBaseQ2NPC
 		pev.solid						= SOLID_SLIDEBOX;
 		pev.movetype				= MOVETYPE_STEP;
 		self.m_bloodColor			= BLOOD_COLOR_RED;
-		self.m_flFieldOfView		= 0.5;
+		self.m_flFieldOfView		= -0.30;
 		self.m_afCapability			= bits_CAP_DOORS_GROUP;
 
 		if( string(self.m_FormattedName).IsEmpty() )

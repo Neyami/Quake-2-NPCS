@@ -4,6 +4,7 @@
 #include "npcs/npc_q2soldier" //20-40 HP
 #include "npcs/npc_q2enforcer" //100 HP
 #include "npcs/npc_q2ironmaiden" //175 HP
+#include "npcs/npc_q2parasite" //175 HP
 #include "npcs/npc_q2berserker" //240 HP
 #include "npcs/npc_q2gladiator" //400 HP
 #include "npcs/npc_q2tank" //750-1000 HP
@@ -28,6 +29,7 @@ void MapInit()
 	npc_q2soldier::Register();
 	npc_q2enforcer::Register();
 	npc_q2ironmaiden::Register();
+	npc_q2parasite::Register();
 	npc_q2berserker::Register();
 	npc_q2gladiator::Register();
 	npc_q2tank::Register();
@@ -58,6 +60,7 @@ const array<string> g_arrsQ2Monsters =
 	"npc_q2soldier",
 	"npc_q2enforcer",
 	"npc_q2ironmaiden",
+	"npc_q2parasite",
 	"npc_q2berserker",
 	"npc_q2gladiator",
 	"npc_q2tank",
@@ -244,6 +247,8 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 			}
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2ironmaiden" )
 				sDeathMsg = string(pVictim.pev.netname) + " was bitch-slapped by an Iron Maiden\n";
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2parasite" )
+				sDeathMsg = string(pVictim.pev.netname) + " was exsanguinated by a Parasite\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2berserker" )
 				sDeathMsg = string(pVictim.pev.netname) + " was smashed by a Berserker\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2gladiator" )

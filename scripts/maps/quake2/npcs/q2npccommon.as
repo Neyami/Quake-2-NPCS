@@ -28,7 +28,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	protected float m_flMeleeCooldown;
 	protected float m_flGibHealth;
 	protected float m_flAttackFinished;
-	protected float m_flNextIdle;
+	protected float m_flNextIdleSound;
+	protected float m_flNextFidget;
 	protected float m_flHeatTurnRate; //for heat-seeking rockets
 	protected float m_flHealthMultiplier = 1.0;
 
@@ -38,6 +39,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	protected int m_iPowerArmorType;
 	protected int m_iPowerArmorPower;
 	protected float m_flArmorEffectOff;
+
+	protected Vector m_vecAttackDir; //g_vecAttackDir
 
 	bool KeyValue( const string& in szKey, const string& in szValue )
 	{
@@ -105,22 +108,38 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		//to test model's eye height
 		//g_EngineFuncs.ParticleEffect( pev.origin + pev.view_ofs, g_vecZero, 255, 10 );
 
-		DoIdleSound();		
+		DoIdleSound();
 		DoSearchSound();
 		CheckArmorEffect();
 	}
 
-	void DoIdleSound()
+	bool ShouldFidget()
 	{
-		if( self.m_Activity == ACT_IDLE and g_Engine.time > m_flNextIdle )
+		if( g_Engine.time > m_flNextFidget )
 		{
-			if( m_flNextIdle > 0.0 )
+			if( m_flNextFidget > 0.0 )
 			{
-				IdleSoundQ2();
-				m_flNextIdle = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
+				m_flNextFidget = g_Engine.time + Math.RandomFloat( 15.0, 30.0 );
+				return true;
 			}
 			else
-				m_flNextIdle = g_Engine.time + Math.RandomFloat(0, 1) * 15;
+				m_flNextFidget = g_Engine.time + Math.RandomFloat( 0.0, 15.0 );
+		}
+
+		return false;
+	}
+
+	void DoIdleSound()
+	{
+		if( self.m_Activity == ACT_IDLE and g_Engine.time > m_flNextIdleSound )
+		{
+			if( m_flNextIdleSound > 0.0 )
+			{
+				IdleSoundQ2();
+				m_flNextIdleSound = g_Engine.time + 15.0 + Math.RandomFloat(0.0, 1.0) * 15.0;
+			}
+			else
+				m_flNextIdleSound = g_Engine.time + Math.RandomFloat(0.0, 1.0) * 15.0;
 		}
 	}
 
@@ -128,15 +147,15 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 	void DoSearchSound()
 	{
-		if( self.m_Activity == ACT_WALK and g_Engine.time > m_flNextIdle )
+		if( self.m_Activity == ACT_WALK and g_Engine.time > m_flNextIdleSound )
 		{
-			if( m_flNextIdle > 0.0 )
+			if( m_flNextIdleSound > 0.0 )
 			{
 				SearchSound();
-				m_flNextIdle = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
+				m_flNextIdleSound = g_Engine.time + 15 + Math.RandomFloat(0, 1) * 15;
 			}
 			else
-				m_flNextIdle = g_Engine.time + Math.RandomFloat(0, 1) * 15;
+				m_flNextIdleSound = g_Engine.time + Math.RandomFloat(0, 1) * 15;
 		}
 	}
 
@@ -1194,4 +1213,24 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	{
 		return (iValue >= iMin and iValue <= iMax);
 	}
+
+	float fabs( float x )
+	{
+		return ( (x) > 0 ? (x) : 0 - (x) );
+	}
+
+/*
+float Q_fabs (float f)
+{
+#if 0
+	if (f >= 0)
+		return f;
+	return -f;
+#else
+	int tmp = * ( int * ) &f;
+	tmp &= 0x7FFFFFFF;
+	return * ( float * ) &tmp;
+#endif
+}
+*/
 }
