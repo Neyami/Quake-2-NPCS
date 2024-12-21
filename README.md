@@ -37,6 +37,13 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 <BR>
 
 
+# PARASITE #  
+`npc_q2parasite`  
+
+
+<BR>
+
+
 # BERSERKER #  
 [Video](https://youtu.be/R6l1_VMTJeI?si=7GmLt90k4zb9akv2)  
 `npc_q2berserker`  
