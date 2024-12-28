@@ -19,6 +19,8 @@ const int AE_MELEE						= 11;
 const int AE_MELEE_REFIRE			= 12;
 const int AE_ROCKET_LAUNCH		= 13;
 const int AE_ROCKET_REFIRE			= 14;
+const int AE_ROCKET_PRELAUNCH	= 15;
+const int AE_ROCKET_RELOAD		= 16;
 
 const float MELEE_DMG_MIN			= 10.0;
 const float MELEE_DMG_MAX			= 16.0;
@@ -34,7 +36,9 @@ const array<string> arrsNPCSounds =
 	"quake2/npcs/ironmaiden/chkidle2.wav",
 	"quake2/npcs/ironmaiden/chksght1.wav",
 	"quake2/npcs/ironmaiden/chksrch1.wav",
+	"quake2/npcs/ironmaiden/chkatck1.wav",
 	"quake2/npcs/ironmaiden/chkatck2.wav",
+	"quake2/npcs/ironmaiden/chkatck5.wav",
 	"quake2/npcs/ironmaiden/chkatck3.wav",
 	"quake2/npcs/ironmaiden/chkatck4.wav",
 	"quake2/npcs/ironmaiden/chkpain1.wav",
@@ -42,10 +46,8 @@ const array<string> arrsNPCSounds =
 	"quake2/npcs/ironmaiden/chkpain3.wav",
 	"quake2/npcs/ironmaiden/chkdeth1.wav",
 	"quake2/npcs/ironmaiden/chkdeth2.wav",
-	"quake2/npcs/ironmaiden/chkatck1.wav",
 	"quake2/npcs/ironmaiden/chkatck3.wav",
-	"quake2/npcs/ironmaiden/chkatck4.wav",
-	"quake2/npcs/ironmaiden/chkatck5.wav"
+	"quake2/npcs/ironmaiden/chkatck4.wav"
 };
 
 enum q2sounds_e
@@ -55,26 +57,14 @@ enum q2sounds_e
 	SND_IDLE2,
 	SND_SIGHT,
 	SND_SEARCH,
+	SND_ROCKET_PRELAUNCH,
 	SND_ROCKET_LAUNCH,
+	SND_ROCKET_RELOAD,
 	SND_MELEE_SWING,
 	SND_MELEE_HIT,
 	SND_PAIN1,
 	SND_PAIN2,
 	SND_PAIN3
-};
-
-const array<string> arrsNPCAnims =
-{
-	"pain1",
-	"pain2",
-	"pain3"
-};
-
-enum anim_e
-{
-	ANIM_PAIN1 = 0,
-	ANIM_PAIN2,
-	ANIM_PAIN3
 };
 
 final class npc_q2ironmaiden : CBaseQ2NPC
@@ -101,6 +91,8 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 		m_flGibHealth = -70.0;
 
 		CommonSpawn();
+
+		@this.m_Schedules = @ironmaiden_schedules;
 
 		self.MonsterInit();
 
@@ -199,6 +191,12 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 				break;
 			}
 
+			case AE_ROCKET_PRELAUNCH:
+			{
+				ChickPreAttack();
+				break;
+			}
+
 			case AE_ROCKET_LAUNCH:
 			{
 				ChickRocket();
@@ -215,12 +213,28 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 
 				break;
 			}
+
+			case AE_ROCKET_RELOAD:
+			{
+				ChickReload();
+				break;
+			}
 		}
 	}
 
 	void ChickMoan()
 	{
 		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[Math.RandomLong(SND_IDLE1, SND_IDLE2)], VOL_NORM, ATTN_IDLE );
+	}
+
+	void ChickPreAttack()
+	{
+		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_ROCKET_PRELAUNCH], VOL_NORM, ATTN_NORM );
+	}
+
+	void ChickReload()
+	{
+		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_ROCKET_RELOAD], VOL_NORM, ATTN_NORM );
 	}
 
 	void ChickRocket()
@@ -267,17 +281,17 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 	bool CheckMeleeAttack2( float flDot, float flDist ) { return false; }
 	bool CheckRangeAttack2( float flDot, float flDist ) { return false; }
 
-	bool CheckMeleeAttack1( float flDot, float flDist )
+	bool CheckRangeAttack1( float flDot, float flDist ) //flDist > 64 and flDist <= 784 and flDot >= 0.5
 	{
-		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
+		if( M_CheckAttack(flDist) )
 			return true;
 
 		return false;
 	}
 
-	bool CheckRangeAttack1( float flDot, float flDist ) //flDist > 64 and flDist <= 784 and flDot >= 0.5
+	bool CheckMeleeAttack1( float flDot, float flDist )
 	{
-		if( M_CheckAttack(flDist) )
+		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
 			return true;
 
 		return false;
@@ -316,11 +330,11 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 			return; // no pain anims in nightmare
 
 		if( flDamage <= 10 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1])  );
+			self.ChangeSchedule( slQ2Pain1 );
 		else if( flDamage <= 25 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2])  );
+			self.ChangeSchedule( slQ2Pain2 );
 		else
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN3])  );
+			self.ChangeSchedule( slQ2Pain3 );
 	}
 
 	void GibMonster()
@@ -353,8 +367,21 @@ final class npc_q2ironmaiden : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ ironmaiden_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2, slQ2Pain3 };
+
+	@ironmaiden_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	q2::RegisterProjectile( "rocket" );
 
 	g_CustomEntityFuncs.RegisterCustomEntity( "npc_q2ironmaiden::npc_q2ironmaiden", "npc_q2ironmaiden" );
@@ -367,4 +394,7 @@ void Register()
 */
 
 /* TODO
+	Use schedules for refire instead of setframe
+	Move death-sounds to script ??
+	Update fidget
 */

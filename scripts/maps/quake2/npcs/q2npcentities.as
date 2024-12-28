@@ -249,7 +249,8 @@ class q2grenadenpc : ScriptBaseEntity
 
 		@pev.owner = null;
 
-		g_WeaponFuncs.RadiusDamage( pev.origin, self.pev, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
+		//g_WeaponFuncs.RadiusDamage( pev.origin, self.pev, pevOwner, pev.dmg, pev.dmg * 2.5, CLASS_NONE, DMG_BLAST );
+		g_WeaponFuncs.RadiusDamage( pev.origin, self.pev, pevOwner, pev.dmg, pev.dmg + 40.0, CLASS_NONE, DMG_BLAST );
 
 		g_EntityFuncs.Remove( self );
 	}
@@ -287,7 +288,12 @@ class q2rocketnpc : ScriptBaseEntity
 		{
 			SetThink( ThinkFunction(this.HeatseekThink) );
 			pev.nextthink = g_Engine.time + 0.025; //FRAME_TIME_MS
+
+			return;
 		}
+
+		SetThink( ThinkFunction(this.RocketThink) );
+		pev.nextthink = g_Engine.time + 0.1;
 	}
 
 	void Precache()
@@ -302,6 +308,12 @@ class q2rocketnpc : ScriptBaseEntity
 		g_SoundSystem.PrecacheSound( "quake2/weapons/rocket_fly.wav" );
 		g_SoundSystem.PrecacheSound( "quake2/weapons/rocket_explode.wav" );
 		g_SoundSystem.PrecacheSound( "quake2/weapons/railgr1a.wav" );
+	}
+
+	void RocketThink()
+	{
+		pev.angles = Math.VecToAngles( pev.velocity );
+		pev.nextthink = g_Engine.time + 0.1;
 	}
 
 	void HeatseekThink()

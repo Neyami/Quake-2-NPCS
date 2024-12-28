@@ -27,7 +27,6 @@ const int AE_DEATH						= 15;
 const float GUN_DAMAGE				= 6.0;
 
 const float GRENADE_DMG				= 50;
-const float GRENADE_SPEED			= 750;
 
 const float ROCKET_DMG				= 50;
 const float ROCKET_SPEED				= 750;
@@ -70,18 +69,12 @@ enum q2sounds_e
 
 const array<string> arrsNPCAnims =
 {
-	"attack_rocket",
-	"pain1",
-	"pain2",
-	"pain3"
+	"attack_rocket"
 };
 
 enum anim_e
 {
-	ANIM_ROCKET = 0,
-	ANIM_PAIN1,
-	ANIM_PAIN2,
-	ANIM_PAIN3
+	ANIM_ROCKET = 0
 };
 
 enum attach_e
@@ -99,6 +92,8 @@ final class npc_q2supertank : CBaseQ2NPC
 
 	void Spawn()
 	{
+		AppendAnims();
+
 		Precache();
 
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
@@ -141,6 +136,12 @@ final class npc_q2supertank : CBaseQ2NPC
 			SetUse( UseFunction(this.FollowerUse) );
 	}
 
+	void AppendAnims()
+	{
+		for( uint i = 0; i < arrsNPCAnims.length(); i++ )
+			arrsQ2NPCAnims.insertLast( arrsNPCAnims[i] );
+	}
+
 	void Precache()
 	{
 		g_Game.PrecacheModel( NPC_MODEL );
@@ -181,7 +182,7 @@ final class npc_q2supertank : CBaseQ2NPC
 	//don't run away at low health!
 	int IgnoreConditions()
 	{
-		if(  self.m_MonsterState == MONSTERSTATE_COMBAT )
+		if( self.m_MonsterState == MONSTERSTATE_COMBAT )
 			return ( bits_COND_SEE_FEAR | bits_COND_LIGHT_DAMAGE | bits_COND_HEAVY_DAMAGE );
 
 		return bits_COND_SEE_FEAR;
@@ -208,12 +209,12 @@ final class npc_q2supertank : CBaseQ2NPC
 
 				if( m_bRerelease )
 				{
-					if( !self.FVisible(self.m_hEnemy, true) or (m_flChaingunMinfire < g_Engine.time and Math.RandomFloat(0.0, 1.0) >= 0.3) )
+					if( !self.m_hEnemy.IsValid() or !self.FVisible(self.m_hEnemy, true) or (m_flChaingunMinfire < g_Engine.time and Math.RandomFloat(0.0, 1.0) >= 0.3) )
 						self.TaskComplete();
 				}
 				else
 				{
-					if( !self.FVisible(self.m_hEnemy, true) or Math.RandomFloat(0.0, 1.0) >= 0.9 )
+					if( !self.m_hEnemy.IsValid() or !self.FVisible(self.m_hEnemy, true) or Math.RandomFloat(0.0, 1.0) >= 0.9 )
 						self.TaskComplete();
 				}
 
@@ -372,21 +373,22 @@ final class npc_q2supertank : CBaseQ2NPC
 
 	void supertankGrenade( int iGrenadeNum )
 	{
+		if( !self.m_hEnemy.IsValid() )
+			return;
+
 		Vector vecMuzzle;
 		self.GetAttachment( ATTACH_GREN_LEFT+(iGrenadeNum-1), vecMuzzle, void );
-		Vector vecAim, vecVelocity;
-		//This is more accurate, perhaps too accurate? :ayaya:
-		//PredictAim( self.m_hEnemy, vecMuzzle, GRENADE_SPEED, false, Math.RandomFloat(-1.0, 1.0) * 0.1, vecVelocity, vecAim );
+		Vector vecAimPoint, vecForward;
 
-		float flDist = (pev.origin - self.m_hEnemy.GetEntity().pev.origin).Length();
-		vecVelocity = VecCheckThrow( vecMuzzle, self.m_hEnemy.GetEntity().Center(), flDist, 0.5 ); //use dist as speed to get there in 1 second
+		PredictAim( self.m_hEnemy, vecMuzzle, 0, false, crandom_open() * 0.1, vecForward, vecAimPoint );
 
-		if( vecVelocity != g_vecZero )
+		for( float flSpeed = 500.0; flSpeed < 1000.0; flSpeed += 100.0 )
 		{
-			g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_GRENADE], VOL_NORM, ATTN_NORM );
-			GetSoundEntInstance().InsertSound( bits_SOUND_COMBAT, pev.origin, 384, 0.3, self );
+			if( !M_CalculatePitchToFire(vecAimPoint, vecMuzzle, vecForward, flSpeed, 2.5, true) )
+				continue;
 
-			monster_fire_weapon( q2::WEAPON_GRENADE, vecMuzzle, vecVelocity, GRENADE_DMG );
+			monster_fire_weapon( q2::WEAPON_GRENADE, vecMuzzle, vecForward, GRENADE_DMG, flSpeed );
+			break;
 		}
 	}
 
@@ -487,7 +489,7 @@ final class npc_q2supertank : CBaseQ2NPC
 			}
 
 			// Don't go into pain if he's firing his rockets
-			if( GetAnim(self.LookupSequence(arrsNPCAnims[ANIM_ROCKET]) ) )
+			if( GetAnim(ANIM_ROCKET) )
 				return;
 		}
 
@@ -504,14 +506,11 @@ final class npc_q2supertank : CBaseQ2NPC
 			return;
 
 		if( flDamage <= 10 )
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1]) );
-			self.m_IdealActivity = ACT_FLINCH_RIGHTARM;
+			self.ChangeSchedule( slQ2Pain1 );
 		else if( flDamage <= 25 )
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2]) );
-			self.m_IdealActivity = ACT_FLINCH_LEFTARM;
+			self.ChangeSchedule( slQ2Pain2 );
 		else
-			//SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN3]) );
-			self.m_IdealActivity = ACT_BIG_FLINCH;
+			self.ChangeSchedule( slQ2Pain3 );
 	}
 
 	void BossExplode()
@@ -661,6 +660,8 @@ ScriptSchedule slSuperTankCgun
 
 void InitSchedules()
 {
+	InitQ2BaseSchedules();
+
 	slSuperTankCgun.AddTask( ScriptTask(TASK_STOP_MOVING) );
 	slSuperTankCgun.AddTask( ScriptTask(TASK_FACE_ENEMY) );
 	slSuperTankCgun.AddTask( ScriptTask(TASK_SET_ACTIVITY, float(ACT_MELEE_ATTACK1)) ); //cgun loop
@@ -668,7 +669,7 @@ void InitSchedules()
 	slSuperTankCgun.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_SIGNAL1)) ); //cgun end
 	slSuperTankCgun.AddTask( ScriptTask(TASK_SET_ACTIVITY, float(ACT_IDLE)) );
 
-	array<ScriptSchedule@> scheds = { slSuperTankCgun };
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2, slQ2Pain3, slSuperTankCgun };
 
 	@supertank_schedules = @scheds;
 }

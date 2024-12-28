@@ -52,7 +52,9 @@ enum q2sounds_e
 	SND_SEARCH,
 	SND_SHOOT,
 	SND_MELEE,
-	SND_MELEE_HIT
+	SND_MELEE_HIT,
+	SND_PAIN1,
+	SND_PAIN2
 };
 
 final class npc_q2enforcer : CBaseQ2NPC
@@ -81,6 +83,8 @@ final class npc_q2enforcer : CBaseQ2NPC
 		m_flGibHealth = -65.0;
 
 		CommonSpawn();
+
+		@this.m_Schedules = @enforcer_schedules;
 
 		self.MonsterInit();
 
@@ -208,18 +212,7 @@ final class npc_q2enforcer : CBaseQ2NPC
 		}
 	}
 
-	bool CheckMeleeAttack1( float flDot, float flDist )
-	{
-		if( g_Engine.time < m_flMeleeCooldown )
-			return false;
-
-		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
-			return true;
-
-		return false;
-	}
-
-	bool CheckRangeAttack1( float flDot, float flDist ) //flDist > 64 and flDist <= 784 and flDot >= 0.5
+	bool CheckRangeAttack1( float flDot, float flDist )
 	{
 		if( M_CheckAttack(flDist) )
 		{
@@ -227,6 +220,17 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 			return true;
 		}
+
+		return false;
+	}
+
+	bool CheckMeleeAttack1( float flDot, float flDist )
+	{
+		if( g_Engine.time < m_flMeleeCooldown )
+			return false;
+
+		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
+			return true;
 
 		return false;
 	}
@@ -258,7 +262,20 @@ final class npc_q2enforcer : CBaseQ2NPC
 
 		pev.pain_finished = g_Engine.time + 3.0;
 
-		self.m_IdealActivity = ACT_SMALL_FLINCH;
+		int iRand = Math.RandomLong( 0, 1 );
+
+		if( iRand == 0 )
+			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN1], VOL_NORM, ATTN_NORM );
+		else
+			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_PAIN2], VOL_NORM, ATTN_NORM );
+
+		if( !M_ShouldReactToPain() )
+			return;
+
+		if( iRand == 0 )
+			self.ChangeSchedule( slQ2Pain1 );
+		else
+			self.ChangeSchedule( slQ2Pain2 );
 	}
 
 	void GibMonster()
@@ -329,8 +346,21 @@ final class npc_q2enforcer : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ enforcer_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2 };
+
+	@enforcer_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	g_CustomEntityFuncs.RegisterCustomEntity( "npc_q2enforcer::npc_q2enforcer", "npc_q2enforcer" );
 	g_Game.PrecacheOther( "npc_q2enforcer" );
 }
@@ -338,9 +368,10 @@ void Register()
 } //end of namespace npc_q2enforcer
 
 /* FIXME
-	Flinching ??
+	Fix the machinegun by using RunTask
 */
 
 /* TODO
 	Add newer attacks
+	Update attack selection
 */

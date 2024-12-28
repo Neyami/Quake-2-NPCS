@@ -70,18 +70,26 @@ enum q2sounds_e
 	SND_DEATH3
 };
 
+const array<string> arrsNPCAnims =
+{
+	"attack1",
+	"attack2",
+	"pain1",
+	"pain2",
+	"pain3",
+	"pain4",
+	"death1",
+	"death2",
+	"death3",
+	"death4",
+	"death5",
+	"death6"
+};
+
 enum anim_e
 {
-	ANIM_IDLE = 0,
-	ANIM_IDLE_FIDGET1,
-	ANIM_IDLE_FIDGET2,
-	ANIM_WALK1 = 4,
-	ANIM_WALK2,
-	ANIM_RUN,
-	ANIM_ATTACK1 = 9, //12
-	ANIM_ATTACK2, //18
-	ANIM_MGUN,
-	ANIM_DUCK = 14,
+	ANIM_ATTACK1,
+	ANIM_ATTACK2,
 	ANIM_PAIN1,
 	ANIM_PAIN2,
 	ANIM_PAIN3,
@@ -108,6 +116,8 @@ final class npc_q2soldier : CBaseQ2NPC
 
 	void Spawn()
 	{
+		AppendAnims();
+
 		Precache();
 
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
@@ -158,10 +168,18 @@ final class npc_q2soldier : CBaseQ2NPC
 
 		CommonSpawn();
 
+		@this.m_Schedules = @soldier_schedules;
+
 		self.MonsterInit();
 
 		if( self.IsPlayerAlly() )
 			SetUse( UseFunction(this.FollowerUse) );
+	}
+
+	void AppendAnims()
+	{
+		for( uint i = 0; i < arrsNPCAnims.length(); i++ )
+			arrsQ2NPCAnims.insertLast( arrsNPCAnims[i] );
 	}
 
 	void Precache()
@@ -432,7 +450,7 @@ final class npc_q2soldier : CBaseQ2NPC
 		if( g_Engine.time < pev.pain_finished )
 		{
 			if( pev.velocity.z > 100 and (GetAnim(ANIM_PAIN1) or GetAnim(ANIM_PAIN2) or GetAnim(ANIM_PAIN3)) )
-				SetAnim( ANIM_PAIN4 );
+				self.ChangeSchedule( slQ2Pain4 );
 
 			return;
 		}
@@ -448,21 +466,21 @@ final class npc_q2soldier : CBaseQ2NPC
 
 		if( pev.velocity.z > 100 )
 		{
-			SetAnim( ANIM_PAIN4 );
+			self.ChangeSchedule( slQ2Pain4 );
 			return;
 		}
 
-		//if (skill->value == 3)
-			//return;		// no pain anims in nightmare
+		if( !M_ShouldReactToPain() )
+			return;
 
 		float flRand = Math.RandomFloat(0.0, 1.0);
 
 		if( flRand < 0.33 )
-			SetAnim( ANIM_PAIN1 );
+			self.ChangeSchedule( slQ2Pain1 );
 		else if( flRand < 0.66 )
-			SetAnim( ANIM_PAIN2 );
+			self.ChangeSchedule( slQ2Pain2 );
 		else
-			SetAnim( ANIM_PAIN3 );
+			self.ChangeSchedule( slQ2Pain3 );
 	}
 
 	void StartTask( Task@ pTask )
@@ -555,8 +573,21 @@ final class npc_q2soldier : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ soldier_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2, slQ2Pain3 };
+
+	@soldier_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	if( !g_CustomEntityFuncs.IsCustomEntity( "q2lasernpc" ) ) 
 		q2::RegisterNPCLaser();
 

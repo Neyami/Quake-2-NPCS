@@ -19,6 +19,7 @@ const int AE_ATTACK_MELEE			= 11;
 const int AE_ATTACK_SAVELOC		= 12;
 const int AE_ATTACK_RAILGUN		= 13;
 const int AE_DEATHSOUND				= 14;
+const int AE_MELEE_SOUND			= 15;
 
 const float MELEE_DMG_MIN			= 20.0;
 const float MELEE_DMG_MAX			= 25.0;
@@ -32,14 +33,14 @@ const array<string> arrsNPCSounds =
 	"quake2/npcs/gladiator/gldidle1.wav",
 	"quake2/npcs/gladiator/sight.wav",
 	"quake2/npcs/gladiator/gldsrch1.wav",
+	"quake2/npcs/gladiator/melee1.wav",
 	"quake2/npcs/gladiator/melee2.wav",
 	"quake2/npcs/gladiator/melee3.wav",
 	"quake2/npcs/gladiator/railgun.wav",
 	"quake2/npcs/gladiator/pain.wav",
 	"quake2/npcs/gladiator/gldpain2.wav",
 	"quake2/npcs/gladiator/death.wav",
-	"quake2/npcs/gladiator/glddeth2.wav",
-	"quake2/npcs/gladiator/melee1.wav"
+	"quake2/npcs/gladiator/glddeth2.wav"
 };
 
 enum q2sounds_e
@@ -48,6 +49,7 @@ enum q2sounds_e
 	SND_IDLE,
 	SND_SIGHT,
 	SND_SEARCH,
+	SND_MELEE,
 	SND_MELEE_HIT,
 	SND_MELEE_MISS,
 	SND_RAILGUN,
@@ -75,6 +77,8 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 	void Spawn()
 	{
+		AppendAnims();
+
 		Precache();
 
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
@@ -96,10 +100,18 @@ final class npc_q2gladiator : CBaseQ2NPC
 
 		CommonSpawn();
 
+		@this.m_Schedules = @gladiator_schedules;
+
 		self.MonsterInit();
 
 		if( self.IsPlayerAlly() )
 			SetUse( UseFunction(this.FollowerUse) );
+	}
+
+	void AppendAnims()
+	{
+		for( uint i = 0; i < arrsNPCAnims.length(); i++ )
+			arrsQ2NPCAnims.insertLast( arrsNPCAnims[i] );
 	}
 
 	void Precache()
@@ -157,6 +169,12 @@ final class npc_q2gladiator : CBaseQ2NPC
 	{
 		switch( pEvent.event )
 		{
+			case AE_MELEE_SOUND:
+			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_MELEE], VOL_NORM, ATTN_NORM );
+				break;
+			}
+
 			case AE_ATTACK_MELEE:
 			{
 				GladiatorMelee();
@@ -176,6 +194,7 @@ final class npc_q2gladiator : CBaseQ2NPC
 					m_vecEnemyDir = (vecEnemyOrigin - vecMuzzle);
 					m_vecEnemyDir = m_vecEnemyDir.Normalize();
 
+					g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_RAILGUN], VOL_NORM, ATTN_NORM );
 					pev.framerate = 0.5; //lower the framerate to time the shot with the sound
 				}
 
@@ -235,17 +254,6 @@ final class npc_q2gladiator : CBaseQ2NPC
 		monster_fire_weapon( q2::WEAPON_RAILGUN, vecMuzzle, m_vecEnemyDir, RAILGUN_DAMAGE );
 	}
 
-	bool CheckMeleeAttack2( float flDot, float flDist ) { return false; }
-	bool CheckRangeAttack2( float flDot, float flDist ) { return false; }
-
-	bool CheckMeleeAttack1( float flDot, float flDist )
-	{
-		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
-			return true;
-
-		return false;
-	}
-
 	bool CheckRangeAttack1( float flDot, float flDist )
 	{
 		// a small safe zone
@@ -253,6 +261,14 @@ final class npc_q2gladiator : CBaseQ2NPC
 				return false;
 
 		if( M_CheckAttack(flDist) )
+			return true;
+
+		return false;
+	}
+
+	bool CheckMeleeAttack1( float flDot, float flDist )
+	{
+		if( flDist <= 64 and flDot >= 0.7 and self.m_hEnemy.IsValid() and self.m_hEnemy.GetEntity().pev.FlagBitSet(FL_ONGROUND) )
 			return true;
 
 		return false;
@@ -282,8 +298,8 @@ final class npc_q2gladiator : CBaseQ2NPC
 	{
 		if( g_Engine.time < pev.pain_finished )
 		{
-			if( pev.velocity.z > 100 and GetAnim(self.LookupSequence(arrsNPCAnims[ANIM_PAIN])) )
-				SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN_AIR]) );
+			if( pev.velocity.z > 100 and GetAnim(ANIM_PAIN) )
+				self.ChangeSchedule( slQ2Pain2 );
 
 			return;
 		}
@@ -297,9 +313,9 @@ final class npc_q2gladiator : CBaseQ2NPC
 			return;
 
 		if( pev.velocity.z > 100 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN_AIR]) );
+			self.ChangeSchedule( slQ2Pain2 );
 		else
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN]) );
+			self.ChangeSchedule( slQ2Pain1 );
 	}
 
 	void GibMonster()
@@ -333,8 +349,21 @@ final class npc_q2gladiator : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ gladiator_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2 };
+
+	@gladiator_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	q2::RegisterProjectile( "railbeam" );
 
 	g_CustomEntityFuncs.RegisterCustomEntity( "npc_q2gladiator::npc_q2gladiator", "npc_q2gladiator" );
@@ -344,6 +373,7 @@ void Register()
 } //end of namespace npc_q2gladiator
 
 /* FIXME
+	The first pain animation freezes at the end for some reason
 */
 
 /* TODO

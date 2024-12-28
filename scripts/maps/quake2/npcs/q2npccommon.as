@@ -42,6 +42,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 	protected Vector m_vecAttackDir; //g_vecAttackDir
 
+	protected array<string> arrsQ2NPCAnims;
+
 	bool KeyValue( const string& in szKey, const string& in szValue )
 	{
 		if( szKey == "is_player_ally" )
@@ -99,6 +101,11 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			return (BaseClass.ObjectCaps() | FCAP_IMPULSE_USE);
 
 		return BaseClass.ObjectCaps();
+	}
+
+	int IgnoreConditions()
+	{
+		return ( bits_COND_SEE_FEAR | bits_COND_LIGHT_DAMAGE | bits_COND_HEAVY_DAMAGE );
 	}
 
 	void RunAI()
@@ -261,6 +268,81 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 			return true;
 
 		return false;
+	}
+
+	//THANK YOU FOR FIXING THIS, CHATGPT
+	bool M_CalculatePitchToFire( const Vector &in vecTarget, const Vector &in vecStart, Vector& out vecAim, float flSpeed, float flTimeRemaining, bool bMortar, bool bDestroyOnTouch = false )
+	{
+		array<float> arrflPitches = { -80.0, -70.0, -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, -5.0 };
+
+		float flBestPitch = 0.0;
+		float flBestDist = Math.FLOAT_MAX;
+
+		const float flSimTime = 0.1;
+		Vector vecPitchedAim = Math.VecToAngles( vecAim );
+
+		for( uint i = 0; i < arrflPitches.length(); i++ )
+		{
+			float flPitch = arrflPitches[i];
+
+			if( bMortar and flPitch >= -30.0 )
+				break;
+
+			vecPitchedAim.x = flPitch;
+			vecPitchedAim.y = Math.VecToAngles(vecTarget - vecStart).y; //Set yaw towards target
+			Math.MakeVectors( vecPitchedAim );
+			Vector vecForward = g_Engine.v_forward;
+
+			Vector vecVelocity = vecForward * flSpeed;
+			Vector vecOrigin = vecStart;
+
+			float flTime = flTimeRemaining;
+
+			while( flTime > 0.0 )
+			{
+				vecVelocity.z -= g_EngineFuncs.CVarGetFloat("sv_gravity") * flSimTime;
+
+				Vector vecEnd = vecOrigin + ( vecVelocity * flSimTime );
+				TraceResult tr;
+				g_Utility.TraceLine( vecOrigin, vecEnd, ignore_monsters, self.edict(), tr );
+
+				vecOrigin = tr.vecEndPos;
+
+				if( tr.flFraction < 1.0 )
+				{
+					if( g_EngineFuncs.PointContents(tr.vecEndPos) == CONTENTS_SKY )
+						break;
+
+					vecOrigin = vecOrigin + tr.vecPlaneNormal;
+
+					float flDist = DotProduct( (vecOrigin - vecTarget), (vecOrigin - vecTarget) ); //lengthSquared
+
+					if( (tr.pHit !is null and (tr.pHit is self.m_hEnemy.GetEntity().edict() or tr.pHit.vars.FlagBitSet(FL_CLIENT))) or (tr.vecPlaneNormal.z >= 0.7 and flDist < (128.0 * 128.0) and flDist < flBestDist) )
+					{
+						flBestPitch = flPitch;
+						flBestDist = flDist;
+					}
+
+					//if( bDestroyOnTouch or (tr.flPlaneDist & (CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER)) != 0 )
+					if( bDestroyOnTouch or (tr.pHit !is null and tr.pHit.vars.FlagBitSet(FL_CLIENT|FL_MONSTER)) )
+						break;
+				}
+
+				flTime -= flSimTime;
+			}
+		}
+
+		if( flBestDist != Math.FLOAT_MAX ) //If a valid pitch was found
+		{
+			vecPitchedAim.x = flBestPitch;
+			vecPitchedAim.y = Math.VecToAngles(vecTarget - vecStart).y; //Ensure yaw is set towards target
+			Math.MakeVectors( vecPitchedAim );
+			vecAim = g_Engine.v_forward;
+
+			return true;
+		}
+
+		return false; //No valid pitch found
 	}
 
 	void PredictAim( EHandle hTarget, const Vector &in vecStart, float flBoltSpeed, bool bEyeHeight, float flOffset, Vector &out vecAimdir, Vector &out vecAimpoint )
@@ -467,7 +549,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	}
 
 	//for chaos mode
-	void monster_fire_weapon( int iWeaponType, Vector vecMuzzle, Vector vecAim, float flDamage, float flSpeed = 600.0 )
+	void monster_fire_weapon( int iWeaponType, Vector vecMuzzle, Vector vecAim, float flDamage, float flSpeed = 600.0, float flRightAdjust = 0.0, float flUpAdjust = 0.0 )
 	{
 		if( q2::g_iChaosMode == q2::CHAOS_LEVEL1 )
 			iWeaponType = m_iWeaponType;
@@ -501,8 +583,7 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 			case q2::WEAPON_GRENADE:
 			{
-				//monster_fire_grenade( vecMuzzle, vecAim * flSpeed, flDamage );
-				monster_fire_grenade( vecMuzzle, vecAim, flDamage );
+				monster_fire_grenade( vecMuzzle, vecAim, flDamage, flSpeed, flRightAdjust, flUpAdjust );
 				break;
 			}
 
@@ -559,11 +640,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pLaser.pev.angles = Math.VecToAngles( vecDir.Normalize() );
 		pLaser.pev.targetname = self.GetClassname(); //for death messages
 
-		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
-		{
-			pLaser.pev.velocity = vecDir;
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and pev.sequence == self.LookupSequence("attack_grenade") )
 			pLaser.pev.movetype = MOVETYPE_TOSS;
-		}
 	}
 
 	void monster_fire_rocket( Vector vecStart, Vector vecDir, float flDamage, float flSpeed, bool bHeatSeeking = false )
@@ -587,20 +665,28 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 
 		g_EntityFuncs.DispatchSpawn( pRocket.edict() );
 
-		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
-		{
-			pRocket.pev.velocity = vecDir;
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and pev.sequence == self.LookupSequence("attack_grenade") )
 			pRocket.pev.movetype = MOVETYPE_TOSS;
-		}
 	}
 
-	void monster_fire_grenade( Vector vecStart, Vector vecVelocity, float flDamage )
+	void monster_fire_grenade( Vector vecStart, Vector vecAim, float flDamage, float flSpeed, float flRightAdjust = 0.0, float flUpAdjust = 0.0 )
 	{
 		CBaseEntity@ pGrenade = g_EntityFuncs.Create( "q2grenadenpc", vecStart, g_vecZero, false, self.edict() );
-		pGrenade.pev.velocity = vecVelocity;
+
 		pGrenade.pev.dmg = flDamage;
-		//pGrenade.pev.scale = flScale;
 		pGrenade.pev.targetname = self.GetClassname(); //for death messages
+		pGrenade.pev.velocity = vecAim * flSpeed;
+
+		Math.MakeVectors( pev.angles );
+
+		if( flUpAdjust > 0.0 )
+		{
+			float flGravityAdjustment = g_EngineFuncs.CVarGetFloat("sv_gravity") / 800.0;
+			pGrenade.pev.velocity = pGrenade.pev.velocity + g_Engine.v_up * flUpAdjust * flGravityAdjustment;
+		}
+
+		if( flRightAdjust > 0.0 )
+			pGrenade.pev.velocity = pGrenade.pev.velocity + g_Engine.v_right * flRightAdjust;
 	}
 
 	void monster_fire_bfg( Vector vecStart, Vector vecDir, float flDamage, float flSpeed )
@@ -610,11 +696,8 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		pBFG.pev.dmg = flDamage;
 		pBFG.pev.targetname = self.GetClassname(); //for death messages
 
-		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and GetAnim(self.LookupSequence("attack_grenade")) )
-		{
-			pBFG.pev.velocity = vecDir;
+		if( q2::g_iChaosMode > q2::CHAOS_NONE and self.GetClassname() == "npc_q2supertank" and pev.sequence == self.LookupSequence("attack_grenade") )
 			pBFG.pev.movetype = MOVETYPE_TOSS;
-		}
 	}
 
 	void monster_fire_railgun( Vector vecStart, Vector vecEnd, float flDamage )
@@ -1039,13 +1122,13 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 	// 
 	Vector VecCheckToss( const Vector &in vecSpot1, Vector vecSpot2, float flGravityAdj )
 	{
-		TraceResult		tr;
-		Vector			vecMidPoint;// halfway point between Spot1 and Spot2
-		Vector			vecApex;// highest point 
-		Vector			vecScale;
-		Vector			vecGrenadeVel;
-		Vector			vecTemp;
-		float			flGravity = g_EngineFuncs.CVarGetFloat("sv_gravity") * flGravityAdj;
+		TraceResult tr;
+		Vector vecMidPoint;// halfway point between Spot1 and Spot2
+		Vector vecApex;// highest point 
+		Vector vecScale;
+		Vector vecGrenadeVel;
+		Vector vecTemp;
+		float flGravity = g_EngineFuncs.CVarGetFloat("sv_gravity") * flGravityAdj;
 
 		if( vecSpot2.z - vecSpot1.z > 500 )
 		{
@@ -1166,14 +1249,20 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return pev.sequence;
 	}
 
-	bool GetAnim( int iAnim )
+	/*bool GetAnim( int iAnim )
 	{
 		return pev.sequence == iAnim;
+	}*/
+
+	bool GetAnim( int iAnim )
+	{
+		return pev.sequence == self.LookupSequence( arrsQ2NPCAnims[iAnim] );
 	}
 
 	void SetAnim( int iAnim, float flFramerate = 1.0, float flFrame = 0.0 )
 	{
-		pev.sequence = iAnim;
+		//pev.sequence = iAnim;
+		pev.sequence = self.LookupSequence( arrsQ2NPCAnims[iAnim] );
 		self.ResetSequenceInfo();
 		pev.frame = flFrame;
 		pev.framerate = flFramerate;
@@ -1214,6 +1303,15 @@ class CBaseQ2NPC : ScriptBaseMonsterEntity
 		return (iValue >= iMin and iValue <= iMax);
 	}
 
+	float crandom_open()
+	{
+		// Generate a random float in [0.0, 1.0)
+		float randomValue = Math.RandomFloat( 0.0, 1.0 );
+
+		// Scale and shift to match the range (-1.0, 1.0]
+		return randomValue * 2.0 - 1.0;
+	}
+
 	float fabs( float x )
 	{
 		return ( (x) > 0 ? (x) : 0 - (x) );
@@ -1233,4 +1331,48 @@ float Q_fabs (float f)
 #endif
 }
 */
+}
+
+ScriptSchedule slQ2Pain1
+(
+	0,
+	0,
+	"Quake 2 Pain 1"
+);
+
+ScriptSchedule slQ2Pain2
+(
+	0,
+	0,
+	"Quake 2 Pain 2"
+);
+
+ScriptSchedule slQ2Pain3
+(
+	0,
+	0,
+	"Quake 2 Pain 3"
+);
+
+ScriptSchedule slQ2Pain4
+(
+	0,
+	0,
+	"Quake 2 Pain 4"
+);
+
+void InitQ2BaseSchedules()
+{
+	slQ2Pain1.AddTask( ScriptTask(TASK_STOP_MOVING) );
+	slQ2Pain1.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_FLINCH_STOMACH)) );
+	//slQ2Pain1.AddTask( ScriptTask(TASK_PAIN_LOOP, 0) );
+
+	slQ2Pain2.AddTask( ScriptTask(TASK_STOP_MOVING) );
+	slQ2Pain2.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_FLINCH_CHEST)) );
+
+	slQ2Pain3.AddTask( ScriptTask(TASK_STOP_MOVING) );
+	slQ2Pain3.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_FLINCH_HEAD)) );
+
+	slQ2Pain4.AddTask( ScriptTask(TASK_STOP_MOVING) );
+	slQ2Pain4.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_FLINCH_LEFTARM)) );
 }

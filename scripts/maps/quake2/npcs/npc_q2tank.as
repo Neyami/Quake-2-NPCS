@@ -24,6 +24,7 @@ const int AE_ATTACK_BLASTER_REFIRE	= 13;
 const int AE_ATTACK_ROCKET					= 14;
 const int AE_ATTACK_ROCKET_REFIRE		= 15;
 const int AE_FOOTSTEP							= 16;
+const int AE_DEATH_THUD						= 17;
 
 const float MGUN_DMG							= 20.0;
 const float BLASTER_DMG						= 30.0;
@@ -39,12 +40,13 @@ const float RANGE_MID							= 320.0; //250 * 1.285
 const array<string> arrsNPCSounds =
 {
 	"quake2/misc/udeath.wav",
-	"quake2/npcs/tank/death.wav",
 	"quake2/npcs/tank/tnkidle1.wav",
 	"quake2/npcs/tank/sight1.wav",
 	"quake2/npcs/tank/step.wav",
 	"quake2/npcs/tank/tnkpain2.wav",
 	"quake2/npcs/tank/pain.wav",
+	"quake2/npcs/tank/death.wav",
+	"quake2/npcs/tank/tnkdeth2.wav", //thud when falling to the ground after death
 	"quake2/npcs/tank/tnkatck3.wav", //blaster
 	"quake2/npcs/tank/tnkatck1.wav", //rocket launcher
 	"quake2/npcs/tank/tnkatk2a.wav", //machine gun
@@ -52,35 +54,21 @@ const array<string> arrsNPCSounds =
 	"quake2/npcs/tank/tnkatk2c.wav",
 	"quake2/npcs/tank/tnkatk2d.wav",
 	"quake2/npcs/tank/tnkatk2e.wav",
-	"quake2/npcs/tank/tnkdeth2.wav" //thud when falling to the ground after death
 };
 
 enum q2sounds_e
 {
 	SND_DEATH_GIB = 0,
-	SND_DEATH_NORMAL,
 	SND_IDLE,
 	SND_SIGHT,
 	SND_FOOTSTEP,
 	SND_PAIN,
 	SND_PAIN_C,
+	SND_DEATH_NORMAL,
+	SND_THUD,
 	SND_BLASTER,
 	SND_ROCKET,
 	SND_MACHINEGUN
-};
-
-const array<string> arrsNPCAnims =
-{
-	"pain1",
-	"pain2",
-	"pain3"
-};
-
-enum anim_e
-{
-	ANIM_PAIN1 = 0,
-	ANIM_PAIN2,
-	ANIM_PAIN3
 };
 
 final class npc_q2tank : CBaseQ2NPC
@@ -137,6 +125,8 @@ final class npc_q2tank : CBaseQ2NPC
 		m_flHeatTurnRate			= ROCKET_HEATSEEKING;
 
 		CommonSpawn();
+
+		@this.m_Schedules = @tank_schedules;
 
 		self.MonsterInit();
 
@@ -326,7 +316,13 @@ final class npc_q2tank : CBaseQ2NPC
 			{
 				g_SoundSystem.EmitSound( self.edict(), CHAN_BODY, arrsNPCSounds[SND_FOOTSTEP], VOL_NORM, ATTN_NORM );
 				break;
-			}			
+			}
+
+			case AE_DEATH_THUD:
+			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_BODY, arrsNPCSounds[SND_THUD], VOL_NORM, ATTN_NORM );
+				break;
+			}
 		}
 	}
 
@@ -488,11 +484,11 @@ final class npc_q2tank : CBaseQ2NPC
 			return;
 
 		if( flDamage <= 30 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1])  );
+			self.ChangeSchedule( slQ2Pain1 );
 		else if( flDamage <= 60 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2])  );
+			self.ChangeSchedule( slQ2Pain2 );
 		else
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN3])  );
+			self.ChangeSchedule( slQ2Pain3 );
 	}
 
 	//Overridden to remove the arm upon normal death
@@ -571,8 +567,21 @@ final class npc_q2tank : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ tank_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2, slQ2Pain3 };
+
+	@tank_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	q2::RegisterProjectile( "laser" );
 	q2::RegisterProjectile( "rocket" );
 

@@ -77,6 +77,8 @@ final class npc_q2parasite : CBaseQ2NPC
 
 	void Spawn()
 	{
+		AppendAnims();
+
 		Precache();
 
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
@@ -104,6 +106,12 @@ final class npc_q2parasite : CBaseQ2NPC
 
 		if( self.IsPlayerAlly() )
 			SetUse( UseFunction(this.FollowerUse) );
+	}
+
+	void AppendAnims()
+	{
+		for( uint i = 0; i < arrsNPCAnims.length(); i++ )
+			arrsQ2NPCAnims.insertLast( arrsNPCAnims[i] );
 	}
 
 	void Precache()
@@ -375,42 +383,6 @@ final class npc_q2parasite : CBaseQ2NPC
 			g_EntityFuncs.Remove(m_pBeam);
 	}
 
-	//overridden because the head is too easy to hit
-	void TraceAttack( entvars_t@ pevAttacker, float flDamage, const Vector& in vecDir, TraceResult& in ptr, int bitsDamageType )
-	{
-		if( pev.takedamage != DAMAGE_NO )
-		{
-			self.m_LastHitGroup = ptr.iHitgroup;
-
-			switch( ptr.iHitgroup )
-			{
-				case HITGROUP_GENERIC:
-				case HITGROUP_HEAD:
-					break;
-				case HITGROUP_CHEST:
-					flDamage *= g_EngineFuncs.CVarGetFloat( "sk_monster_chest" );
-					break;
-				case HITGROUP_STOMACH:
-					flDamage *= g_EngineFuncs.CVarGetFloat( "sk_monster_stomach" );
-					break;
-				case HITGROUP_LEFTARM:
-				case HITGROUP_RIGHTARM:
-					flDamage *= g_EngineFuncs.CVarGetFloat( "sk_monster_arm" );
-					break;
-				case HITGROUP_LEFTLEG:
-				case HITGROUP_RIGHTLEG:
-					flDamage *= g_EngineFuncs.CVarGetFloat( "sk_monster_leg" );
-					break;
-				default:
-					break;
-			}
-
-			g_WeaponFuncs.SpawnBlood( ptr.vecEndPos, self.BloodColor(), flDamage );
-			self.TraceBleed( flDamage, vecDir, ptr, bitsDamageType );
-			g_WeaponFuncs.AddMultiDamage( pevAttacker, self, flDamage, bitsDamageType );
-		}
-	}
-
 	int TakeDamage( entvars_t@ pevInflictor, entvars_t@ pevAttacker, float flDamage, int bitsDamageType )
 	{
 		float psave = CheckPowerArmor( pevInflictor, flDamage );
@@ -447,7 +419,8 @@ final class npc_q2parasite : CBaseQ2NPC
 			return;
 
 		DestroyEffect();
-		SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN]) );
+
+		self.ChangeSchedule( slQ2Pain1 );
 	}
 
 	void Killed( entvars_t@ pevAttacker, int iGib )
@@ -507,6 +480,8 @@ ScriptSchedule slParasiteFidget
 
 void InitSchedules()
 {
+	InitQ2BaseSchedules();
+
 	slParasiteFidget.AddTask( ScriptTask(TASK_STOP_MOVING) );
 	slParasiteFidget.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_SIGNAL1)) ); //fidget start
 	slParasiteFidget.AddTask( ScriptTask(TASK_SET_ACTIVITY, float(ACT_TWITCH)) ); //fidget loop
@@ -514,7 +489,7 @@ void InitSchedules()
 	slParasiteFidget.AddTask( ScriptTask(TASK_PLAY_SEQUENCE, float(ACT_SIGNAL2)) ); //fidget end
 	slParasiteFidget.AddTask( ScriptTask(TASK_SET_ACTIVITY, float(ACT_IDLE)) );
 
-	array<ScriptSchedule@> scheds = { slParasiteFidget };
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slParasiteFidget };
 
 	@parasite_schedules = @scheds;
 }

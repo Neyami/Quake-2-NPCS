@@ -17,6 +17,8 @@ const int NPC_HEALTH					= 240;
 
 const int AE_ATTACK_SPIKE			= 11;
 const int AE_ATTACK_CLUB				= 12;
+const int AE_ATTACKSOUND			= 13;
+const int AE_FLINCHRESET				= 14;
 
 const float SPIKE_DMG_MIN			= 5.0;
 const float SPIKE_DMG_MAX			= 11.0;
@@ -51,17 +53,13 @@ enum q2sounds_e
 
 const array<string> arrsNPCAnims =
 {
-	"flinch",
-	"flinch_heavy",
 	"death1",
 	"death2"
 };
 
 enum anim_e
 {
-	ANIM_PAIN1 = 0,
-	ANIM_PAIN2,
-	ANIM_DEATH1,
+	ANIM_DEATH1 = 0,
 	ANIM_DEATH2
 };
 
@@ -69,6 +67,8 @@ final class npc_q2berserker : CBaseQ2NPC
 {
 	void Spawn()
 	{
+		AppendAnims();
+
 		Precache();
 
 		g_EntityFuncs.SetModel( self, NPC_MODEL );
@@ -90,10 +90,18 @@ final class npc_q2berserker : CBaseQ2NPC
 
 		CommonSpawn();
 
+		@this.m_Schedules = @berserker_schedules;
+
 		self.MonsterInit();
 
 		if( self.IsPlayerAlly() )
 			SetUse( UseFunction(this.FollowerUse) );
+	}
+
+	void AppendAnims()
+	{
+		for( uint i = 0; i < arrsNPCAnims.length(); i++ )
+			arrsQ2NPCAnims.insertLast( arrsNPCAnims[i] );
 	}
 
 	void Precache()
@@ -145,10 +153,27 @@ final class npc_q2berserker : CBaseQ2NPC
 			g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_SEARCH], VOL_NORM, ATTN_NORM );
 	}
 
+	void DeathSound() 
+	{
+		g_SoundSystem.EmitSound( self.edict(), CHAN_VOICE, arrsNPCSounds[SND_DEATH], VOL_NORM, ATTN_NORM );
+	}
+
 	void HandleAnimEventQ2( MonsterEvent@ pEvent )
 	{
 		switch( pEvent.event )
 		{
+			case q2::AE_IDLESOUND:
+			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_IDLE1], VOL_NORM, ATTN_IDLE );
+				break;
+			}
+
+			case AE_ATTACKSOUND:
+			{
+				g_SoundSystem.EmitSound( self.edict(), CHAN_WEAPON, arrsNPCSounds[SND_ATTACK], VOL_NORM, ATTN_NORM );
+				break;
+			}
+
 			case AE_ATTACK_SPIKE:
 			{
 				MeleeAttack();
@@ -258,9 +283,9 @@ final class npc_q2berserker : CBaseQ2NPC
 			return;
 
 		if( flDamage <= 50 or Math.RandomFloat(0.0, 1.0) < 0.5 )
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN1])  );
+			self.ChangeSchedule( slQ2Pain1 );
 		else
-			SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_PAIN2])  );
+			self.ChangeSchedule( slQ2Pain2 );
 	}
 
 	void StartTask( Task@ pTask )
@@ -270,9 +295,9 @@ final class npc_q2berserker : CBaseQ2NPC
 			case TASK_DIE:
 			{
 				if( pev.dmg >= 50 )
-					SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_DEATH1])  );
+					SetAnim( ANIM_DEATH1 );
 				else
-					SetAnim( self.LookupSequence(arrsNPCAnims[ANIM_DEATH2])  );
+					SetAnim( ANIM_DEATH2 );
 
 				break;
 			}
@@ -315,8 +340,21 @@ final class npc_q2berserker : CBaseQ2NPC
 	}
 }
 
+array<ScriptSchedule@>@ berserker_schedules;
+
+void InitSchedules()
+{
+	InitQ2BaseSchedules();
+
+	array<ScriptSchedule@> scheds = { slQ2Pain1, slQ2Pain2 };
+
+	@berserker_schedules = @scheds;
+}
+
 void Register()
 {
+	InitSchedules();
+
 	g_CustomEntityFuncs.RegisterCustomEntity( "npc_q2berserker::npc_q2berserker", "npc_q2berserker" );
 	g_Game.PrecacheOther( "npc_q2berserker" );
 }
@@ -328,4 +366,5 @@ void Register()
 
 /* TODO
 	Add stuff from rerelease ??
+	Update fidget
 */

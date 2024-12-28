@@ -3,8 +3,9 @@
 
 #include "npcs/npc_q2soldier" //20-40 HP
 #include "npcs/npc_q2enforcer" //100 HP
-#include "npcs/npc_q2ironmaiden" //175 HP
 #include "npcs/npc_q2parasite" //175 HP
+#include "npcs/npc_q2gunner" //175 HP
+#include "npcs/npc_q2ironmaiden" //175 HP
 #include "npcs/npc_q2berserker" //240 HP
 #include "npcs/npc_q2gladiator" //400 HP
 #include "npcs/npc_q2tank" //750-1000 HP
@@ -17,6 +18,7 @@
 
 void MapInit()
 {
+	q2::g_bRerelease = true;
 	q2::g_iChaosMode = q2::CHAOS_NONE;
 	q2::g_iDifficulty = q2::DIFF_HARD;
 
@@ -28,8 +30,9 @@ void MapInit()
 
 	npc_q2soldier::Register();
 	npc_q2enforcer::Register();
-	npc_q2ironmaiden::Register();
 	npc_q2parasite::Register();
+	npc_q2gunner::Register();
+	npc_q2ironmaiden::Register();
 	npc_q2berserker::Register();
 	npc_q2gladiator::Register();
 	npc_q2tank::Register();
@@ -46,6 +49,7 @@ void MapInit()
 namespace q2
 {
 
+bool g_bRerelease;
 int g_iDifficulty;
 int g_iChaosMode;
 
@@ -59,8 +63,9 @@ const array<string> g_arrsQ2Monsters =
 {
 	"npc_q2soldier",
 	"npc_q2enforcer",
-	"npc_q2ironmaiden",
 	"npc_q2parasite",
+	"npc_q2gunner",
+	"npc_q2ironmaiden",
 	"npc_q2berserker",
 	"npc_q2gladiator",
 	"npc_q2tank",
@@ -110,6 +115,7 @@ enum weapons_e
 	WEAPON_SHOTGUN,
 	WEAPON_BLASTER,
 	WEAPON_GRENADE,
+	WEAPON_GRENADE2, //TEMP
 	WEAPON_ROCKET,
 	WEAPON_HEATSEEKING,
 	WEAPON_RAILGUN,
@@ -125,12 +131,6 @@ enum parmor_e
 
 HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 {
-	/*g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] pVictim: " + pDamageInfo.pVictim.GetClassname() + "\n" );
-	g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] Damage Type: " + pDamageInfo.bitsDamageType + "\n" );
-	g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] Damage Amount: " + pDamageInfo.flDamage + "\n" );
-	g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] pAttacker: " + pDamageInfo.pAttacker.GetClassname() + "\n" );
-	g_PlayerFuncs.ClientPrintAll( HUD_PRINTTALK, "[PTDT] pInflictor: " + pDamageInfo.pInflictor.GetClassname() + "\n" );*/
-
 	//TODO TIDY THIS UP
 	if( g_arrsQ2Projectiles.find(pDamageInfo.pInflictor.GetClassname()) >= 0 )
 	{
@@ -194,6 +194,8 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 			{
 				if( pProjectile.pev.targetname == "npc_q2supertank" )
 					sDeathMsg = string(pVictim.pev.netname) + " was popped by a Super Tank's grenade\n";
+				else if( pProjectile.pev.targetname == "npc_q2gunner" )
+					sDeathMsg = string(pVictim.pev.netname) + " was popped by a Gunner's grenade\n";
 			}
 			else if( pProjectile.GetClassname() == "q2bfgnpc" )
 			{
@@ -245,10 +247,12 @@ HookReturnCode PlayerTakeDamage( DamageInfo@ pDamageInfo )
 				else
 					sDeathMsg = string(pVictim.pev.netname) + " was bludgeoned by an Enforcer\n";
 			}
-			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2ironmaiden" )
-				sDeathMsg = string(pVictim.pev.netname) + " was bitch-slapped by an Iron Maiden\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2parasite" )
 				sDeathMsg = string(pVictim.pev.netname) + " was exsanguinated by a Parasite\n";
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2gunner" )
+				sDeathMsg = string(pVictim.pev.netname) + " was machinegunned by a Gunner\n";
+			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2ironmaiden" )
+				sDeathMsg = string(pVictim.pev.netname) + " was bitch-slapped by an Iron Maiden\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2berserker" )
 				sDeathMsg = string(pVictim.pev.netname) + " was smashed by a Berserker\n";
 			else if( pDamageInfo.pAttacker.GetClassname() == "npc_q2gladiator" )
@@ -314,7 +318,7 @@ Vector slerp( const Vector &in vecFrom, const Vector &in vecTo, float t )
 */
 
 /* TODO
-	Try to fix flinching
+	Try to fix flinching, the last frame loops for a few frames (also triggering animation events)
 
 	Add blindfire ??
 
@@ -323,4 +327,6 @@ Vector slerp( const Vector &in vecFrom, const Vector &in vecTo, float t )
 	Make use of m_flGibHealth ??
 
 	Figure out how to make monsters not run away when at low health
+
+	Update the size of the monsters to make sure they've been scaled properly
 */
