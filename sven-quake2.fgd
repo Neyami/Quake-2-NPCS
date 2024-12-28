@@ -28,6 +28,8 @@
 
 @PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 42) studio("models/quake2/monsters/parasite/parasite.mdl") = npc_q2parasite : "Quake 2 Parasite" []
 
+@PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 88) studio("models/quake2/monsters/gunner/gunner.mdl") = npc_q2gunner : "Quake 2 Gunner" []
+
 @PointClass base(Monster, Quake2) size(-16 -16 0, 16 16 72) studio("models/quake2/monsters/berserker/berserker.mdl") = npc_q2berserker : "Quake 2 Berserker" []
 
 @PointClass base(Monster, Quake2) size(-32 -32 0, 32 32 90) studio("models/quake2/monsters/gladiator/gladiator.mdl") = npc_q2gladiator : "Quake 2 Gladiator" []
