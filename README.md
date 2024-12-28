@@ -29,16 +29,24 @@ Refer to `sven-quake2.fgd` to see the keyvalues that set the weapons
 <BR>
 
 
-# IRON MAIDEN #  
-[Video](https://youtu.be/_mOfQfemmFs?si=pDq6O0BbQIZNdi4g)  
-`npc_q2ironmaiden`  
+# PARASITE #  
+`npc_q2parasite`  
 
 
 <BR>
 
 
-# PARASITE #  
-`npc_q2parasite`  
+# GUNNER #  
+[Video](https://www.youtube.com/watch?v=tCUHC1iecLA)  
+`npc_q2gunner`  
+
+
+<BR>
+
+
+# IRON MAIDEN #  
+[Video](https://youtu.be/_mOfQfemmFs?si=pDq6O0BbQIZNdi4g)  
+`npc_q2ironmaiden`  
 
 
 <BR>
